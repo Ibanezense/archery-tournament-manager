@@ -53,10 +53,42 @@ const App: React.FC = () => {
         return () => window.removeEventListener('popstate', onLocationChange);
     }, []);
 
-    // Load state from Firebase on initial render
+    // Load state from Firebase on initial render + migrate from localStorage if needed
     useEffect(() => {
         const tournamentRef = ref(database, 'tournamentState');
         const teamsRef = ref(database, 'registeredTeams');
+        
+        // Check and migrate from localStorage to Firebase (one-time migration)
+        const migrateFromLocalStorage = async () => {
+            try {
+                // Check if Firebase is empty
+                const firebaseSnapshot = await get(teamsRef);
+                const firebaseData = firebaseSnapshot.val();
+                
+                // Only migrate if Firebase is empty but localStorage has data
+                if (!firebaseData || (Array.isArray(firebaseData) && firebaseData.length === 0)) {
+                    const localTeams = localStorage.getItem(REGISTERED_TEAMS_KEY);
+                    if (localTeams) {
+                        try {
+                            const parsedTeams = JSON.parse(localTeams);
+                            if (Array.isArray(parsedTeams) && parsedTeams.length > 0) {
+                                console.log('Migrating teams from localStorage to Firebase:', parsedTeams);
+                                await set(teamsRef, parsedTeams);
+                                // Optionally clear localStorage after successful migration
+                                // localStorage.removeItem(REGISTERED_TEAMS_KEY);
+                            }
+                        } catch (parseErr) {
+                            console.error('Error parsing localStorage teams:', parseErr);
+                        }
+                    }
+                }
+            } catch (migrationErr) {
+                console.error('Error during migration:', migrationErr);
+            }
+        };
+
+        // Run migration first, then set up listeners
+        migrateFromLocalStorage();
         
         // Set up real-time listeners
         const unsubscribeTournament = onValue(tournamentRef, (snapshot) => {

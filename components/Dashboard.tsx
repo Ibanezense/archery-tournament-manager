@@ -3,6 +3,7 @@ import React, { memo, useMemo } from 'react';
 import type { TournamentState, RankingData, Match } from '../types';
 import MatchList from './MatchList';
 import RankingTable from './RankingTable';
+import AllTeamsModal from './AllTeamsModal';
 
 interface DashboardProps {
     tournamentState: TournamentState;
@@ -67,8 +68,30 @@ const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onO
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            <div className="lg:col-span-2 order-2 lg:order-1">
+        <div className="space-y-6">
+            {/* Ranking Section - First */}
+            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <RankingTable rankingData={rankingData} teams={tournamentState.teams} />
+                <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                    <button
+                        onClick={exportToCSV}
+                        className="flex-1 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 text-sm shadow-lg"
+                    >
+                        📊 Export Results to CSV
+                    </button>
+                    {allMatchesCompleted && isAdmin && (
+                        <button
+                            onClick={onGenerateFinals}
+                            className="flex-1 bg-yellow-600 text-white font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-lg hover:bg-yellow-700 transition duration-300 text-sm sm:text-base shadow-lg"
+                        >
+                            🏆 Generate Finals
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Matches Section - Middle */}
+            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
                 <MatchList 
                     title="Qualification Matches"
                     matches={tournamentState.groupMatches} 
@@ -79,22 +102,43 @@ const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onO
                     isAdmin={isAdmin}
                 />
             </div>
-            <div className="order-1 lg:order-2">
-                <RankingTable rankingData={rankingData} teams={tournamentState.teams} />
-                <button
-                    onClick={exportToCSV}
-                    className="mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 text-sm shadow-lg"
-                >
-                    📊 Export Results to CSV
-                </button>
-                 {allMatchesCompleted && isAdmin && (
-                    <button
-                        onClick={onGenerateFinals}
-                        className="mt-4 sm:mt-6 w-full bg-yellow-600 text-white font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-lg hover:bg-yellow-700 transition duration-300 text-sm sm:text-base shadow-lg"
-                    >
-                        Finish Group Stage & Generate Finals
-                    </button>
-                )}
+
+            {/* Teams Section - Bottom */}
+            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Equipos Participantes</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {tournamentState.teams.map((team, index) => (
+                        <div
+                            key={team.id}
+                            className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border-2 border-gray-200 hover:border-yellow-400 transition-all"
+                            style={{ 
+                                borderLeftWidth: '6px',
+                                borderLeftColor: team.color || '#d69e2e'
+                            }}
+                        >
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xl font-bold text-gray-400">#{index + 1}</span>
+                                <h4 className="text-lg font-bold text-gray-900">{team.name}</h4>
+                            </div>
+                            {team.members && team.members.length > 0 && (
+                                <div className="mt-2">
+                                    <p className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1">
+                                        <span>👥</span>
+                                        <span>{team.members.length} integrantes</span>
+                                    </p>
+                                    <ul className="space-y-0.5">
+                                        {team.members.map((member, idx) => (
+                                            <li key={idx} className="text-xs text-gray-700 flex items-center gap-1">
+                                                <span className="w-1 h-1 bg-yellow-500 rounded-full"></span>
+                                                {member}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );
