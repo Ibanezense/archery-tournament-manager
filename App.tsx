@@ -5,6 +5,7 @@ import { GROUP_SCHEDULES } from './constants';
 import SetupScreen from './components/SetupScreen';
 import TeamManagement from './components/TeamManagement';
 import AllTeamsModal from './components/AllTeamsModal';
+import HomeScreen from './components/HomeScreen';
 import LoadingSpinner from './components/LoadingSpinner';
 import { RankingData } from './types';
 import { preloadDashboard, preloadScoresheetModal, preloadQRCodeModal } from './preload';
@@ -25,6 +26,7 @@ const App: React.FC = () => {
     const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
     const [registeredTeams, setRegisteredTeams] = useState<Team[]>([]);
     const [showTeamManagement, setShowTeamManagement] = useState(false);
+    const [showSetupScreen, setShowSetupScreen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeMatch, setActiveMatch] = useState<Match | null>(null);
@@ -139,7 +141,7 @@ const App: React.FC = () => {
         setShowTeamManagement(false);
     }, [tournamentState]);
 
-    const handleSetupComplete = useCallback((teams: Team[]) => {
+    const handleSetupComplete = useCallback((teams: Team[], tournamentName: string, tournamentDate: string) => {
         const schedule = GROUP_SCHEDULES[teams.length];
         const groupMatches: Match[] = schedule.map((matchPair, index) => ({
             id: index + 1,
@@ -157,14 +159,17 @@ const App: React.FC = () => {
         }));
 
         const initialState: TournamentState = {
+            id: Date.now().toString(),
+            name: tournamentName,
+            date: tournamentDate,
             stage: 'group',
             teams,
             groupMatches,
             playoffMatches: [],
-            adminPassword: 'AbsoluteArchery25',
         };
         
         setTournamentState(initialState);
+        setShowSetupScreen(false);
         setIsAdmin(true); // El creador es admin automáticamente
         
         // Preload Dashboard and modal components after setup
@@ -469,7 +474,7 @@ const App: React.FC = () => {
     }, []);
     
     const renderDashboard = () => {
-        // Si está mostrando TeamManagement (con o sin torneo activo)
+        // Si está mostrando TeamManagement
         if (showTeamManagement) {
             return (
                 <TeamManagement
@@ -480,24 +485,30 @@ const App: React.FC = () => {
             );
         }
         
-        if (!tournamentState) {
+        // Si está mostrando SetupScreen (crear torneo)
+        if (showSetupScreen) {
             return (
-                <div className="space-y-4">
-                    <SetupScreen 
-                        registeredTeams={registeredTeams}
-                        onSetupComplete={handleSetupComplete} 
-                    />
-                    <div className="text-center">
-                        <button
-                            onClick={() => setShowTeamManagement(true)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition shadow-lg"
-                        >
-                            ⚙️ Manage Registered Teams
-                        </button>
-                    </div>
-                </div>
+                <SetupScreen
+                    registeredTeams={registeredTeams}
+                    onSetupComplete={handleSetupComplete}
+                />
             );
         }
+        
+        // Si no hay torneo, mostrar HomeScreen
+        if (!tournamentState) {
+            return (
+                <HomeScreen
+                    registeredTeams={registeredTeams}
+                    hasTournament={false}
+                    onEnterTournament={() => {}}
+                    onCreateTournament={() => setShowSetupScreen(true)}
+                    isAdmin={isAdmin}
+                />
+            );
+        }
+        
+        // Si hay torneo activo, mostrar dashboard correspondiente
         if (tournamentState.stage === 'group') {
              return (
                 <Suspense fallback={<LoadingSpinner />}>
@@ -568,8 +579,8 @@ const App: React.FC = () => {
                 <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-yellow-600">
                     Archery Tournament Manager
                 </h1>
-                {tournamentState && path === '/' && (
-                    <div className="flex gap-2 flex-shrink-0 flex-wrap justify-center sm:justify-end">
+                <div className="flex gap-2 flex-shrink-0 flex-wrap justify-center sm:justify-end">
+                    {tournamentState && path === '/' && (
                         <button
                             onClick={() => setShowAllTeamsModal(true)}
                             className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
@@ -577,57 +588,61 @@ const App: React.FC = () => {
                         >
                             📋 Teams
                         </button>
-                        {isAdmin && (
-                            <button
-                                onClick={() => setShowTeamManagement(true)}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
-                                title="Manage Teams"
-                            >
-                                ⚙️ Edit Teams
-                            </button>
-                        )}
-                        {!isAdmin ? (
-                            <button
-                                onClick={() => setShowLoginModal(true)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
-                                title="Admin Login"
-                            >
-                                🔒 Admin
-                            </button>
-                        ) : (
-                            <>
-                                <button
-                                    onClick={downloadBackup}
-                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
-                                    title="Download Backup"
-                                >
-                                    💾 Backup
-                                </button>
-                                <button
-                                    onClick={handleImportBackup}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
-                                    title="Restore Backup"
-                                >
-                                    📂 Restore
-                                </button>
-                                <button
-                                    onClick={handleLogout}
-                                    className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
-                                    title="Logout"
-                                >
-                                    Logout
-                                </button>
-                                <button
-                                    onClick={handleResetTournament}
-                                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
-                                    title="Reset Tournament"
-                                >
-                                    Reset
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
+                    )}
+                    {isAdmin && (
+                        <button
+                            onClick={() => setShowTeamManagement(true)}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
+                            title="Manage Teams"
+                        >
+                            ⚙️ Equipos
+                        </button>
+                    )}
+                    {!isAdmin ? (
+                        <button
+                            onClick={() => setShowLoginModal(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
+                            title="Admin Login"
+                        >
+                            🔒 Admin
+                        </button>
+                    ) : (
+                        <>
+                            {tournamentState && (
+                                <>
+                                    <button
+                                        onClick={downloadBackup}
+                                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
+                                        title="Download Backup"
+                                    >
+                                        💾 Backup
+                                    </button>
+                                    <button
+                                        onClick={handleImportBackup}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
+                                        title="Restore Backup"
+                                    >
+                                        📂 Restore
+                                    </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
+                                        title="Logout"
+                                    >
+                                        Logout
+                                    </button>
+                                    <button
+                                        onClick={handleResetTournament}
+                                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
+                                        title="Reset Tournament"
+                                    >
+                                        Reset
+                                    </button>
+                                </>
+                            )}
+                        </>
+                    )}
+                </div>
             </header>
             <main>
                 {error ? (

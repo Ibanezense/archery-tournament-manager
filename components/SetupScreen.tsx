@@ -4,11 +4,13 @@ import type { Team } from '../types';
 
 interface SetupScreenProps {
     registeredTeams: Team[];
-    onSetupComplete: (teams: Team[]) => void;
+    onSetupComplete: (teams: Team[], tournamentName: string, tournamentDate: string) => void;
 }
 
 const SetupScreen: React.FC<SetupScreenProps> = ({ registeredTeams, onSetupComplete }) => {
     const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
+    const [tournamentName, setTournamentName] = useState('');
+    const [tournamentDate, setTournamentDate] = useState(new Date().toISOString().split('T')[0]);
 
     const handleToggleTeam = (teamId: number) => {
         if (selectedTeamIds.includes(teamId)) {
@@ -37,8 +39,13 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ registeredTeams, onSetupCompl
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
+        if (!tournamentName.trim()) {
+            alert('Por favor ingresa un nombre para el torneo');
+            return;
+        }
+        
         if (selectedTeamIds.length < 7 || selectedTeamIds.length > 10) {
-            alert('Please select between 7 and 10 teams for the tournament');
+            alert('Por favor selecciona entre 7 y 10 equipos para el torneo');
             return;
         }
 
@@ -51,7 +58,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ registeredTeams, onSetupCompl
             };
         });
 
-        onSetupComplete(tournamentTeams);
+        onSetupComplete(tournamentTeams, tournamentName, tournamentDate);
     };
 
     const selectedTeams = selectedTeamIds.map(id => registeredTeams.find(t => t.id === id)!);
@@ -59,12 +66,40 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ registeredTeams, onSetupCompl
 
     return (
         <div className="max-w-4xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-xl border border-gray-200">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-yellow-600">Select Teams for Tournament</h2>
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-yellow-600">Crear Nuevo Torneo</h2>
             
             {registeredTeams.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No teams registered. Please go to Team Management first.</p>
+                <p className="text-center text-gray-500 py-8">No hay equipos registrados. Por favor ve a Gestión de Equipos primero.</p>
             ) : (
                 <form onSubmit={handleSubmit}>
+                    {/* Tournament Info */}
+                    <div className="mb-6 space-y-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Nombre del Torneo *
+                            </label>
+                            <input
+                                type="text"
+                                value={tournamentName}
+                                onChange={(e) => setTournamentName(e.target.value)}
+                                placeholder="Ej: Campeonato Nacional 2025"
+                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Fecha del Torneo
+                            </label>
+                            <input
+                                type="date"
+                                value={tournamentDate}
+                                onChange={(e) => setTournamentDate(e.target.value)}
+                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                            />
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Available Teams */}
                         <div>

@@ -49,12 +49,23 @@ export interface EditHistoryEntry {
 export type TournamentStage = 'setup' | 'group' | 'playoffs' | 'finished';
 
 export interface TournamentState {
+  id?: string;
+  name?: string;
+  date?: string;
   stage: TournamentStage;
   teams: Team[];
   groupMatches: Match[];
   playoffMatches: Match[];
   adminPassword?: string;
-  registeredTeams?: Team[]; // Equipos registrados disponibles para torneos
+  registeredTeams?: Team[];
+}
+
+export interface TournamentMetadata {
+  id: string;
+  name: string;
+  date: string;
+  teamsCount: number;
+  stage: 'group' | 'playoffs' | 'finished';
 }
 
 export interface RankingData {
