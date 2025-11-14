@@ -58,9 +58,14 @@ const App: React.FC = () => {
         
         // Set up real-time listeners
         const unsubscribeTournament = onValue(tournamentRef, (snapshot) => {
-            const data = snapshot.val();
-            setTournamentState(data || null);
-            setLoading(false);
+            try {
+                const data = snapshot.val();
+                setTournamentState(data || null);
+            } catch (err) {
+                console.error("Error processing tournament state:", err);
+            } finally {
+                setLoading(false);
+            }
         }, (error) => {
             console.error("Failed to load tournament state:", error);
             setError("Could not load tournament data from server.");
@@ -68,10 +73,17 @@ const App: React.FC = () => {
         });
 
         const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
-            const data = snapshot.val();
-            setRegisteredTeams(data || []);
+            try {
+                const data = snapshot.val();
+                // Ensure it's always an array
+                setRegisteredTeams(Array.isArray(data) ? data : (data ? [data] : []));
+            } catch (err) {
+                console.error("Error processing registered teams:", err);
+                setRegisteredTeams([]);
+            }
         }, (error) => {
             console.error("Failed to load registered teams:", error);
+            setRegisteredTeams([]);
         });
 
         return () => {
@@ -618,7 +630,20 @@ const App: React.FC = () => {
                 )}
             </header>
             <main>
-                {renderContent()}
+                {error ? (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4" role="alert">
+                        <strong className="font-bold">Error: </strong>
+                        <span className="block sm:inline">{error}</span>
+                        <button 
+                            onClick={() => window.location.reload()} 
+                            className="mt-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                        >
+                            Reload Page
+                        </button>
+                    </div>
+                ) : (
+                    renderContent()
+                )}
             </main>
             {activeMatch && tournamentState && (
                 <Suspense fallback={null}>
