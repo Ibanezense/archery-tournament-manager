@@ -1,0 +1,5 @@
+{
+  "name": "Archery Tournament Manager",
+  "description": "A live dashboard and scoresheet application for managing an archery tournament. It handles group stages, live rankings based on match points and tie-breakers, and generates a final playoff bracket.",
+  "requestFramePermissions": []
+}
