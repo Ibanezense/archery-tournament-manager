@@ -28,7 +28,11 @@ const App: React.FC = () => {
     const [activeMatch, setActiveMatch] = useState<Match | null>(null);
     const [isEditingMatch, setIsEditingMatch] = useState(false);
     const [qrCodeMatch, setQrCodeMatch] = useState<Match | null>(null);
-    const [path, setPath] = useState(window.location.pathname);
+    const [path, setPath] = useState(() => {
+        const fullPath = window.location.pathname;
+        // Remove base path for GitHub Pages
+        return fullPath.replace('/archery-tournament-manager', '') || '/';
+    });
     const [isAdmin, setIsAdmin] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showAllTeamsModal, setShowAllTeamsModal] = useState(false);
@@ -38,7 +42,8 @@ const App: React.FC = () => {
     // Basic router
     useEffect(() => {
         const onLocationChange = () => {
-            setPath(window.location.pathname);
+            const fullPath = window.location.pathname;
+            setPath(fullPath.replace('/archery-tournament-manager', '') || '/');
         };
         window.addEventListener('popstate', onLocationChange);
         return () => window.removeEventListener('popstate', onLocationChange);
