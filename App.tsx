@@ -8,6 +8,8 @@ import AllTeamsModal from './components/AllTeamsModal';
 import LoadingSpinner from './components/LoadingSpinner';
 import { RankingData } from './types';
 import { preloadDashboard, preloadScoresheetModal, preloadQRCodeModal } from './preload';
+import { database } from './firebase';
+import { ref, onValue, set, get } from 'firebase/database';
 
 // Lazy load components that are not immediately needed
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -49,67 +51,52 @@ const App: React.FC = () => {
         return () => window.removeEventListener('popstate', onLocationChange);
     }, []);
 
-    // Load state from localStorage on initial render
+    // Load state from Firebase on initial render
     useEffect(() => {
-        try {
-            const savedStateJSON = localStorage.getItem(LOCAL_STORAGE_KEY);
-            const savedTeamsJSON = localStorage.getItem(REGISTERED_TEAMS_KEY);
-            
-            if (savedStateJSON) {
-                setTournamentState(JSON.parse(savedStateJSON));
-            } else {
-                setTournamentState(null); // No tournament setup yet
-            }
-            
-            if (savedTeamsJSON) {
-                setRegisteredTeams(JSON.parse(savedTeamsJSON));
-            }
-        } catch (err) {
-            console.error("Failed to load state from localStorage:", err);
-            setError("Could not load tournament data. Storage might be corrupted.");
-        } finally {
+        const tournamentRef = ref(database, 'tournamentState');
+        const teamsRef = ref(database, 'registeredTeams');
+        
+        // Set up real-time listeners
+        const unsubscribeTournament = onValue(tournamentRef, (snapshot) => {
+            const data = snapshot.val();
+            setTournamentState(data || null);
             setLoading(false);
-        }
-    }, []);
+        }, (error) => {
+            console.error("Failed to load tournament state:", error);
+            setError("Could not load tournament data from server.");
+            setLoading(false);
+        });
 
-    // Real-time update listener
-    useEffect(() => {
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === LOCAL_STORAGE_KEY && e.newValue) {
-                try {
-                    setTournamentState(JSON.parse(e.newValue));
-                } catch (err) {
-                    console.error("Failed to parse updated state from storage:", err);
-                }
-            }
-        };
+        const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
+            const data = snapshot.val();
+            setRegisteredTeams(data || []);
+        }, (error) => {
+            console.error("Failed to load registered teams:", error);
+        });
 
-        window.addEventListener('storage', handleStorageChange);
         return () => {
-            window.removeEventListener('storage', handleStorageChange);
+            unsubscribeTournament();
+            unsubscribeTeams();
         };
     }, []);
 
-    // Save state to localStorage whenever it changes
+    // Save tournament state to Firebase
     useEffect(() => {
-        try {
-            if (tournamentState) { // Don't save the initial null state before setup
-                const tournamentStateJSON = JSON.stringify(tournamentState);
-                localStorage.setItem(LOCAL_STORAGE_KEY, tournamentStateJSON);
-            }
-        } catch (err) {
-            console.error("Failed to save state to localStorage:", err);
-            setError("Could not save tournament data.");
+        if (tournamentState) {
+            const tournamentRef = ref(database, 'tournamentState');
+            set(tournamentRef, tournamentState).catch((err) => {
+                console.error("Failed to save tournament state:", err);
+                setError("Could not save tournament data to server.");
+            });
         }
     }, [tournamentState]);
 
-    // Save registered teams
+    // Save registered teams to Firebase
     useEffect(() => {
-        try {
-            localStorage.setItem(REGISTERED_TEAMS_KEY, JSON.stringify(registeredTeams));
-        } catch (err) {
+        const teamsRef = ref(database, 'registeredTeams');
+        set(teamsRef, registeredTeams).catch((err) => {
             console.error("Failed to save registered teams:", err);
-        }
+        });
     }, [registeredTeams]);
 
     const handleSaveRegisteredTeams = useCallback((teams: Team[]) => {
@@ -255,11 +242,9 @@ const App: React.FC = () => {
                     
                     if (tournamentData) {
                         setTournamentState(tournamentData);
-                        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(tournamentData));
                     }
                     if (teamsData.length > 0) {
                         setRegisteredTeams(teamsData);
-                        localStorage.setItem(REGISTERED_TEAMS_KEY, JSON.stringify(teamsData));
                     }
                     
                     alert('✅ Backup restored successfully!');
@@ -461,7 +446,8 @@ const App: React.FC = () => {
 
     const handleResetTournament = useCallback(() => {
         if (window.confirm("Are you sure you want to reset the tournament? All data will be lost.")) {
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            const tournamentRef = ref(database, 'tournamentState');
+            set(tournamentRef, null);
             setTournamentState(null);
             setActiveMatch(null);
             setIsEditingMatch(false);
