@@ -233,12 +233,9 @@ const App: React.FC = () => {
     }, []);
 
     const handleLogin = useCallback(() => {
-        if (!tournamentState?.adminPassword) {
-            setLoginError('No admin password configured.');
-            return;
-        }
+        const FIXED_ADMIN_PASSWORD = 'AbsoluteArchery25';
         
-        if (loginPassword === tournamentState.adminPassword) {
+        if (loginPassword === FIXED_ADMIN_PASSWORD) {
             setIsAdmin(true);
             setShowLoginModal(false);
             setLoginPassword('');
@@ -246,7 +243,7 @@ const App: React.FC = () => {
         } else {
             setLoginError('Incorrect password');
         }
-    }, [loginPassword, tournamentState?.adminPassword]);
+    }, [loginPassword]);
 
     const handleLogout = useCallback(() => {
         setIsAdmin(false);
