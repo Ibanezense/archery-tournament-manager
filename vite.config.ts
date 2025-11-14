@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      base: '/', // Change to '/archery-tournament-manager/' if deploying to GitHub Pages repo
+      base: '/archery-tournament-manager/',
       server: {
         port: 3000,
         host: '0.0.0.0',
