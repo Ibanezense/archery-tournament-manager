@@ -137,13 +137,15 @@ const App: React.FC = () => {
         }
     }, [tournamentState]);
 
-    // Save registered teams to Firebase
+    // Save registered teams to Firebase (only when explicitly changed, not on initial load)
     useEffect(() => {
+        if (loading) return; // Don't save during initial load
+        
         const teamsRef = ref(database, 'registeredTeams');
         set(teamsRef, registeredTeams).catch((err) => {
             console.error("Failed to save registered teams:", err);
         });
-    }, [registeredTeams]);
+    }, [registeredTeams, loading]);
 
     const handleSaveRegisteredTeams = useCallback((teams: Team[]) => {
         setRegisteredTeams(teams);
