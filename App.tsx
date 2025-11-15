@@ -28,6 +28,7 @@ const App: React.FC = () => {
     const [showTeamManagement, setShowTeamManagement] = useState(false);
     const [showSetupScreen, setShowSetupScreen] = useState(false);
     const [loading, setLoading] = useState(true);
+    const isSavingTeams = React.useRef(false);
     const [error, setError] = useState<string | null>(null);
     const [activeMatch, setActiveMatch] = useState<Match | null>(null);
     const [isEditingMatch, setIsEditingMatch] = useState(false);
@@ -108,14 +109,19 @@ const App: React.FC = () => {
 
         const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
             try {
+                // Don't update if we're currently saving to avoid race conditions
+                if (isSavingTeams.current) {
+                    console.log('Skipping Firebase update - save in progress');
+                    return;
+                }
+                
                 const data = snapshot.val();
-                // Ensure it's always an array, but don't overwrite with empty array
+                console.log('Firebase teams update received:', data);
+                
+                // Ensure it's always an array
                 const teams = Array.isArray(data) ? data : (data ? [data] : []);
                 
-                // Only update if we have data OR if current state is also empty
-                if (teams.length > 0 || registeredTeams.length === 0) {
-                    setRegisteredTeams(teams);
-                }
+                setRegisteredTeams(teams);
             } catch (err) {
                 console.error("Error processing registered teams:", err);
             }
@@ -148,6 +154,9 @@ const App: React.FC = () => {
             return;
         }
         
+        console.log('Saving teams to Firebase:', teams);
+        isSavingTeams.current = true;
+        
         // Save to Firebase explicitly
         const teamsRef = ref(database, 'registeredTeams');
         set(teamsRef, teams).then(() => {
@@ -155,6 +164,11 @@ const App: React.FC = () => {
             // Backup to localStorage as safety measure
             localStorage.setItem(REGISTERED_TEAMS_KEY, JSON.stringify(teams));
             setRegisteredTeams(teams);
+            
+            // Wait a bit for Firebase to propagate before allowing updates
+            setTimeout(() => {
+                isSavingTeams.current = false;
+            }, 500);
             
             // Si hay torneo activo, actualizar los equipos del torneo con la info actualizada
             if (tournamentState) {
@@ -183,6 +197,7 @@ const App: React.FC = () => {
         }).catch((err) => {
             console.error("Failed to save registered teams:", err);
             alert('Error saving teams to database. Please try again.');
+            isSavingTeams.current = false;
         });
     }, [tournamentState]);
 
