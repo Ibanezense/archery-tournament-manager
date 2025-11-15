@@ -15,6 +15,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
     const [memberInput, setMemberInput] = useState('');
     const [members, setMembers] = useState<string[]>([]);
     const [editingMemberIndex, setEditingMemberIndex] = useState<number | null>(null);
+    const [editingMemberValue, setEditingMemberValue] = useState('');
     const [duplicateWarning, setDuplicateWarning] = useState<string[]>([]);
 
     const teamColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
@@ -58,19 +59,22 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
 
     const handleEditMember = (index: number) => {
         setEditingMemberIndex(index);
+        setEditingMemberValue(members[index]);
     };
 
     const handleSaveMemberEdit = (index: number, newName: string) => {
-        if (newName.trim()) {
+        if (newName && newName.trim()) {
             const updatedMembers = [...members];
             updatedMembers[index] = newName.trim();
             setMembers(updatedMembers);
         }
         setEditingMemberIndex(null);
+        setEditingMemberValue('');
     };
 
     const handleCancelMemberEdit = () => {
         setEditingMemberIndex(null);
+        setEditingMemberValue('');
     };
 
     const handleSaveTeam = () => {
@@ -292,28 +296,32 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
                                                 <>
                                                     <input
                                                         type="text"
-                                                        defaultValue={member}
+                                                        value={editingMemberValue}
+                                                        onChange={(e) => setEditingMemberValue(e.target.value)}
                                                         autoFocus
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
-                                                                handleSaveMemberEdit(idx, e.currentTarget.value);
+                                                                e.preventDefault();
+                                                                handleSaveMemberEdit(idx, editingMemberValue);
                                                             } else if (e.key === 'Escape') {
                                                                 handleCancelMemberEdit();
                                                             }
                                                         }}
                                                         className="flex-1 px-2 py-1 border-2 border-yellow-500 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-600"
+                                                        data-gramm="false"
+                                                        data-gramm_editor="false"
+                                                        data-enable-grammarly="false"
                                                     />
                                                     <button
-                                                        onClick={(e) => {
-                                                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                                            handleSaveMemberEdit(idx, input.value);
-                                                        }}
+                                                        onClick={() => handleSaveMemberEdit(idx, editingMemberValue)}
+                                                        type="button"
                                                         className="text-xs px-2 py-1 bg-green-600 text-white hover:bg-green-700 rounded transition font-bold"
                                                     >
                                                         ✓
                                                     </button>
                                                     <button
                                                         onClick={handleCancelMemberEdit}
+                                                        type="button"
                                                         className="text-xs px-2 py-1 bg-gray-400 text-white hover:bg-gray-500 rounded transition font-bold"
                                                     >
                                                         ✕
