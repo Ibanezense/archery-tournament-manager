@@ -109,15 +109,18 @@ const App: React.FC = () => {
         const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
             try {
                 const data = snapshot.val();
-                // Ensure it's always an array
-                setRegisteredTeams(Array.isArray(data) ? data : (data ? [data] : []));
+                // Ensure it's always an array, but don't overwrite with empty array
+                const teams = Array.isArray(data) ? data : (data ? [data] : []);
+                
+                // Only update if we have data OR if current state is also empty
+                if (teams.length > 0 || registeredTeams.length === 0) {
+                    setRegisteredTeams(teams);
+                }
             } catch (err) {
                 console.error("Error processing registered teams:", err);
-                setRegisteredTeams([]);
             }
         }, (error) => {
             console.error("Failed to load registered teams:", error);
-            setRegisteredTeams([]);
         });
 
         return () => {
@@ -137,18 +140,25 @@ const App: React.FC = () => {
         }
     }, [tournamentState]);
 
-    // Save registered teams to Firebase (only when explicitly changed, not on initial load)
-    useEffect(() => {
-        if (loading) return; // Don't save during initial load
-        
-        const teamsRef = ref(database, 'registeredTeams');
-        set(teamsRef, registeredTeams).catch((err) => {
-            console.error("Failed to save registered teams:", err);
-        });
-    }, [registeredTeams, loading]);
-
     const handleSaveRegisteredTeams = useCallback((teams: Team[]) => {
-        setRegisteredTeams(teams);
+        // Validate teams before saving
+        if (!Array.isArray(teams)) {
+            console.error('Invalid teams data:', teams);
+            alert('Error: Invalid team data');
+            return;
+        }
+        
+        // Save to Firebase explicitly
+        const teamsRef = ref(database, 'registeredTeams');
+        set(teamsRef, teams).then(() => {
+            console.log('Teams saved successfully to Firebase:', teams);
+            // Backup to localStorage as safety measure
+            localStorage.setItem(REGISTERED_TEAMS_KEY, JSON.stringify(teams));
+            setRegisteredTeams(teams);
+        }).catch((err) => {
+            console.error("Failed to save registered teams:", err);
+            alert('Error saving teams to database. Please try again.');
+        });
         
         // Si hay torneo activo, actualizar los equipos del torneo con la info actualizada
         if (tournamentState) {

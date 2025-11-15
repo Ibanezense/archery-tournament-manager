@@ -21,8 +21,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
 
     // Sync local state when registeredTeams prop changes (from Firebase)
     useEffect(() => {
-        // Only update if not currently editing to avoid overwriting user changes
-        if (!showForm) {
+        // Only update if not currently editing and if registeredTeams has data
+        if (!showForm && registeredTeams.length >= teams.length) {
             setTeams(registeredTeams);
         }
     }, [registeredTeams, showForm]);
