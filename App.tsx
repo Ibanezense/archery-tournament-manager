@@ -155,34 +155,35 @@ const App: React.FC = () => {
             // Backup to localStorage as safety measure
             localStorage.setItem(REGISTERED_TEAMS_KEY, JSON.stringify(teams));
             setRegisteredTeams(teams);
+            
+            // Si hay torneo activo, actualizar los equipos del torneo con la info actualizada
+            if (tournamentState) {
+                const updatedTournamentTeams = tournamentState.teams.map(tournamentTeam => {
+                    const updatedTeam = teams.find(t => t.id === tournamentTeam.id);
+                    if (updatedTeam) {
+                        // Mantener el id del torneo pero actualizar nombre y miembros
+                        return {
+                            ...tournamentTeam,
+                            name: updatedTeam.name,
+                            members: updatedTeam.members,
+                            color: updatedTeam.color
+                        };
+                    }
+                    return tournamentTeam;
+                });
+                
+                setTournamentState({
+                    ...tournamentState,
+                    teams: updatedTournamentTeams
+                });
+            }
+            
+            // Only close modal after successful save
+            setShowTeamManagement(false);
         }).catch((err) => {
             console.error("Failed to save registered teams:", err);
             alert('Error saving teams to database. Please try again.');
         });
-        
-        // Si hay torneo activo, actualizar los equipos del torneo con la info actualizada
-        if (tournamentState) {
-            const updatedTournamentTeams = tournamentState.teams.map(tournamentTeam => {
-                const updatedTeam = teams.find(t => t.id === tournamentTeam.id);
-                if (updatedTeam) {
-                    // Mantener el id del torneo pero actualizar nombre y miembros
-                    return {
-                        ...tournamentTeam,
-                        name: updatedTeam.name,
-                        members: updatedTeam.members,
-                        color: updatedTeam.color
-                    };
-                }
-                return tournamentTeam;
-            });
-            
-            setTournamentState({
-                ...tournamentState,
-                teams: updatedTournamentTeams
-            });
-        }
-        
-        setShowTeamManagement(false);
     }, [tournamentState]);
 
     const handleSetupComplete = useCallback((teams: Team[], tournamentName: string, tournamentDate: string) => {
