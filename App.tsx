@@ -147,10 +147,18 @@ const App: React.FC = () => {
     }, [tournamentState]);
 
     const handleSaveRegisteredTeams = useCallback((teams: Team[]) => {
+        console.log('handleSaveRegisteredTeams called with:', teams);
+        
         // Validate teams before saving
         if (!Array.isArray(teams)) {
             console.error('Invalid teams data:', teams);
             alert('Error: Invalid team data');
+            return;
+        }
+        
+        // Check if already saving
+        if (isSavingTeams.current) {
+            console.log('Already saving, skipping duplicate save');
             return;
         }
         

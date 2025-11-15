@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Team } from '../types';
 
 interface TeamManagementProps {
@@ -18,16 +18,6 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
     const [duplicateWarning, setDuplicateWarning] = useState<string[]>([]);
 
     const teamColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
-
-    // Sync local state when registeredTeams prop changes (from Firebase)
-    useEffect(() => {
-        // Update from Firebase if:
-        // 1. Not currently editing (showForm is false)
-        // 2. Firebase has data (not empty array or null)
-        if (!showForm && registeredTeams && registeredTeams.length > 0) {
-            setTeams(registeredTeams);
-        }
-    }, [registeredTeams, showForm]);
 
     // Detectar miembros duplicados
     const checkDuplicateMembers = useMemo(() => {
