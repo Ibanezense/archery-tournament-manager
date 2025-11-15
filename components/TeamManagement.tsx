@@ -81,19 +81,23 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
 
         if (editingTeam) {
             // Editando equipo existente
-            setTeams(teams.map(t => 
+            console.log('Updating team:', editingTeam.id, 'with name:', teamName, 'members:', members);
+            const updatedTeams = teams.map(t => 
                 t.id === editingTeam.id 
-                    ? { ...t, name: teamName.trim(), members }
+                    ? { ...t, name: teamName.trim(), members: [...members] }
                     : t
-            ));
+            );
+            console.log('Updated teams array:', updatedTeams);
+            setTeams(updatedTeams);
         } else {
             // Nuevo equipo
             const newTeam: Team = {
                 id: teams.length > 0 ? Math.max(...teams.map(t => t.id)) + 1 : 1,
                 name: teamName.trim(),
                 color: teamColors[teams.length % teamColors.length],
-                members
+                members: [...members]
             };
+            console.log('Adding new team:', newTeam);
             setTeams([...teams, newTeam]);
         }
 
@@ -231,7 +235,10 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
                     {teams.length > 0 && (
                         <div className="mt-6">
                             <button
-                                onClick={() => onSaveTeams(teams)}
+                                onClick={() => {
+                                    console.log('Save & Continue clicked with teams:', teams);
+                                    onSaveTeams(teams);
+                                }}
                                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition shadow-lg"
                             >
                                 Save & Continue
