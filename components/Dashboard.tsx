@@ -54,12 +54,12 @@ const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onO
                 const teamB = tournamentState.teams.find(t => t.id === match.teamB_id);
                 const winner = match.winner_id ? tournamentState.teams.find(t => t.id === match.winner_id)?.name : 'N/A';
                 return [
-                    match.label,
+                    match.label || `Match ${match.id}`,
                     teamA?.name || 'N/A',
                     teamB?.name || 'N/A',
-                    `${match.teamA_set_points_total}-${match.teamB_set_points_total}`,
+                    `${match.teamA_set_points_total || 0}-${match.teamB_set_points_total || 0}`,
                     winner,
-                    match.sets.length
+                    match.sets?.length || 0
                 ];
             })
         ].map(row => row.join(',')).join('\n');
