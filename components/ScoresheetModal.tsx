@@ -21,7 +21,7 @@ const isX10 = (val: ArrowValue) => val === 'X' || val === 10;
 
 const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, isEditing, onClose, onSave }) => {
     const [currentMatch, setCurrentMatch] = useState<Match>(JSON.parse(JSON.stringify(match)));
-    const [currentSetIndex, setCurrentSetIndex] = useState(match.sets.length);
+    const [currentSetIndex, setCurrentSetIndex] = useState(match.sets?.length || 0);
     const [currentArrowsA, setCurrentArrowsA] = useState<ArrowValue[]>([]);
     const [currentArrowsB, setCurrentArrowsB] = useState<ArrowValue[]>([]);
     const [editingSetIndex, setEditingSetIndex] = useState<number | null>(null);
@@ -37,14 +37,14 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
     const isReadOnly = useMemo(() => match.completed && !isEditing, [match.completed, isEditing]);
 
     const liveTotalSetPoints = useMemo(() => {
-        return currentMatch.sets.reduce((acc, set) => ({
+        return (currentMatch.sets || []).reduce((acc, set) => ({
             a: acc.a + set.teamA_set_points,
             b: acc.b + set.teamB_set_points,
         }), { a: 0, b: 0 });
     }, [currentMatch.sets]);
 
     const isMatchOver = liveTotalSetPoints.a >= 5 || liveTotalSetPoints.b >= 5;
-    const needsShootOff = liveTotalSetPoints.a === 4 && liveTotalSetPoints.b === 4 && currentMatch.sets.length === 4;
+    const needsShootOff = liveTotalSetPoints.a === 4 && liveTotalSetPoints.b === 4 && (currentMatch.sets?.length || 0) === 4;
     const isShootOffMode = needsShootOff && currentSetIndex === 4; // El set 5 (índice 4) es el shoot-off
     const canAddSet = !isMatchOver && currentSetIndex < 4;
 
@@ -71,7 +71,7 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
     }
     
     const handleEditSet = (index: number) => {
-        const setToEdit = currentMatch.sets[index];
+        const setToEdit = currentMatch.sets?.[index];
         if (setToEdit) {
             setCurrentArrowsA(setToEdit.teamA_arrows);
             setCurrentArrowsB(setToEdit.teamB_arrows);
@@ -103,13 +103,13 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
             teamB_set_points: pointsB,
         };
 
-        const newSets = [...currentMatch.sets];
+        const newSets = [...(currentMatch.sets || [])];
         newSets[editingSetIndex] = updatedSet;
         
         const updatedMatch = { ...currentMatch, sets: newSets };
         
         // Recalcular totales de set points
-        const totalSetPoints = updatedMatch.sets.reduce((acc, set) => ({
+        const totalSetPoints = (updatedMatch.sets || []).reduce((acc, set) => ({
             a: acc.a + set.teamA_set_points,
             b: acc.b + set.teamB_set_points,
         }), { a: 0, b: 0 });
@@ -135,12 +135,12 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
     };
 
     const deleteLastSet = useCallback(() => {
-        if (currentMatch.sets.length === 0) return;
+        if ((currentMatch.sets?.length || 0) === 0) return;
         
         if (window.confirm('Are you sure you want to delete the last set? This action cannot be undone.')) {
             const updatedMatch = {
                 ...currentMatch,
-                sets: currentMatch.sets.slice(0, -1),
+                sets: (currentMatch.sets || []).slice(0, -1),
                 completed: false,
                 winner_id: undefined,
                 isShootOff: false,
@@ -150,8 +150,8 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
                     {
                         timestamp: new Date().toISOString(),
                         action: 'set_deleted' as const,
-                        setIndex: currentMatch.sets.length - 1,
-                        details: `Deleted set ${currentMatch.sets.length}`
+                        setIndex: (currentMatch.sets?.length || 1) - 1,
+                        details: `Deleted set ${currentMatch.sets?.length || 0}`
                     }
                 ]
             };
@@ -193,20 +193,20 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
 
         const updatedMatch = { 
             ...currentMatch, 
-            sets: [...currentMatch.sets, newSet],
+            sets: [...(currentMatch.sets || []), newSet],
             editHistory: [
                 ...(currentMatch.editHistory || []),
                 {
                     timestamp: new Date().toISOString(),
                     action: 'set_added' as const,
-                    setIndex: currentMatch.sets.length,
-                    details: `Set ${currentMatch.sets.length + 1}: ${currentSetTotals.totalA}-${currentSetTotals.totalB} (${pointsA}-${pointsB} points)`
+                    setIndex: currentMatch.sets?.length || 0,
+                    details: `Set ${(currentMatch.sets?.length || 0) + 1}: ${currentSetTotals.totalA}-${currentSetTotals.totalB} (${pointsA}-${pointsB} points)`
                 }
             ]
         };
         
         // Calcular totales de set points después de agregar el nuevo set
-        const totalSetPoints = updatedMatch.sets.reduce((acc, set) => ({
+        const totalSetPoints = (updatedMatch.sets || []).reduce((acc, set) => ({
             a: acc.a + set.teamA_set_points,
             b: acc.b + set.teamB_set_points,
         }), { a: 0, b: 0 });
@@ -248,7 +248,7 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
             finalMatch.shootOffScore = undefined;
         }
 
-        const finalPoints = finalMatch.sets.reduce((acc, set) => ({
+        const finalPoints = (finalMatch.sets || []).reduce((acc, set) => ({
             a: acc.a + set.teamA_set_points,
             b: acc.b + set.teamB_set_points,
         }), { a: 0, b: 0 });
@@ -261,7 +261,7 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
         finalMatch.teamA_set_points_total = finalPoints.a;
         finalMatch.teamB_set_points_total = finalPoints.b;
 
-        const totals = finalMatch.sets.reduce((acc, set) => ({
+        const totals = (finalMatch.sets || []).reduce((acc, set) => ({
             scoreA: acc.scoreA + set.teamA_set_total,
             scoreB: acc.scoreB + set.teamB_set_total,
             x10sA: acc.x10sA + set.teamA_x10s,
@@ -305,7 +305,7 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
 
     const renderSetSummary = () => (
         <div className="space-y-4">
-            {isEditing && currentMatch.sets.length > 0 && (
+            {isEditing && (currentMatch.sets?.length || 0) > 0 && (
                 <div className="flex justify-end mb-2">
                     <button
                         onClick={deleteLastSet}
@@ -315,7 +315,7 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
                     </button>
                 </div>
             )}
-            {currentMatch.sets.map((set, index) => (
+            {(currentMatch.sets || []).map((set, index) => (
                 <div key={index} className="bg-white border-2 border-gray-200 p-4 rounded-lg shadow-sm">
                     <h4 className="flex justify-between items-center text-lg font-bold mb-3 text-gray-900 border-b-2 border-gray-200 pb-2">
                         <span>
@@ -398,7 +398,7 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
         // Modo shoot-off
         if (isShootOffMode && !isMatchOver) {
             return <>
-                {currentMatch.sets.length > 0 && (
+                {(currentMatch.sets?.length || 0) > 0 && (
                     <div className="mb-6">
                         {renderSetSummary()}
                     </div>
@@ -443,7 +443,7 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
         // Modo normal: ingreso de nuevo set
         if (canAddSet) {
             return <>
-                {currentMatch.sets.length > 0 && (
+                {(currentMatch.sets?.length || 0) > 0 && (
                     <div className="mb-6">
                         {renderSetSummary()}
                         <div className="border-t-2 border-gray-200 mt-4"></div>
