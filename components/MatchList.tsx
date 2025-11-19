@@ -99,11 +99,11 @@ const MatchList: React.FC<MatchListProps> = ({ title, matches, teams, onOpenScor
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-end gap-1 sm:gap-2 w-full">
-                                    {match.sets.length > 0 && (
+                                    {(match.sets?.length || 0) > 0 && (
                                         <span className="text-base sm:text-lg font-bold text-gray-700 mr-1">
                                             {match.teamA_set_points_total} - {match.teamB_set_points_total}
                                             <span className="text-xs ml-1 text-gray-500">
-                                                (Set {match.sets.length}/{match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 ? '5' : '4'})
+                                                (Set {match.sets?.length || 0}/{match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 ? '5' : '4'})
                                             </span>
                                         </span>
                                     )}
@@ -119,19 +119,19 @@ const MatchList: React.FC<MatchListProps> = ({ title, matches, teams, onOpenScor
                                             <button
                                                 onClick={() => onOpenScoresheet(match)}
                                                 className={`font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded transition duration-200 text-xs sm:text-sm shadow ${
-                                                    match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 && match.sets.length === 4
+                                                    match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 && (match.sets?.length || 0) === 4
                                                         ? 'bg-red-600 hover:bg-red-700 text-white'
                                                         : 'bg-blue-600 hover:bg-blue-700 text-white'
                                                 }`}
                                             >
-                                                {match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 && match.sets.length === 4
+                                                {match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 && (match.sets?.length || 0) === 4
                                                     ? 'Shoot-Off'
-                                                    : `Enter Set ${match.sets.length + 1}`
+                                                    : `Enter Set ${(match.sets?.length || 0) + 1}`
                                                 }
                                             </button>
                                         </>
                                     )}
-                                    {!isAdmin && match.sets.length === 0 && (
+                                    {!isAdmin && (match.sets?.length || 0) === 0 && (
                                         <span className="text-gray-600 text-sm italic">Not started</span>
                                     )}
                                 </div>
