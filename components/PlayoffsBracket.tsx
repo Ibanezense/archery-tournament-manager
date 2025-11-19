@@ -41,16 +41,16 @@ const PlayoffsBracket: React.FC<PlayoffsBracketProps> = ({ teams, matches, onOpe
                 <div className="font-bold text-gray-900 mb-2 text-center text-sm sm:text-base">{title}</div>
                  <div className="flex items-center justify-between text-sm sm:text-base text-gray-900">
                     <span className={`truncate flex-1 ${match.completed && match.winner_id === match.teamA_id ? 'font-bold text-yellow-600' : ''}`}>{getTeamName(match.teamA_id)}</span>
-                    <span className="font-bold ml-2">{match.completed ? match.teamA_set_points_total : (match.sets.length > 0 ? match.teamA_set_points_total : '-')}</span>
+                    <span className="font-bold ml-2">{match.completed ? match.teamA_set_points_total : ((match.sets?.length || 0) > 0 ? match.teamA_set_points_total : '-')}</span>
                  </div>
                   <div className="flex items-center justify-between mt-1 text-sm sm:text-base text-gray-900">
                     <span className={`truncate flex-1 ${match.completed && match.winner_id === match.teamB_id ? 'font-bold text-yellow-600' : ''}`}>{getTeamName(match.teamB_id)}</span>
-                    <span className="font-bold ml-2">{match.completed ? match.teamB_set_points_total : (match.sets.length > 0 ? match.teamB_set_points_total : '-')}</span>
+                    <span className="font-bold ml-2">{match.completed ? match.teamB_set_points_total : ((match.sets?.length || 0) > 0 ? match.teamB_set_points_total : '-')}</span>
                  </div>
-                 {!match.completed && match.sets.length > 0 && (
+                 {!match.completed && (match.sets?.length || 0) > 0 && (
                     <div className="text-center mt-1">
                         <span className="text-xs text-gray-500">
-                            Set {match.sets.length}/{match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 ? '5' : '4'}
+                            Set {match.sets?.length || 0}/{match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 ? '5' : '4'}
                         </span>
                     </div>
                  )}
@@ -95,14 +95,14 @@ const PlayoffsBracket: React.FC<PlayoffsBracketProps> = ({ teams, matches, onOpe
                                     <button 
                                         onClick={() => onOpenScoresheet(match)} 
                                         className={`text-white text-xs sm:text-sm font-bold py-1 px-2 sm:px-3 rounded shadow-sm transition ${
-                                            match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 && match.sets.length === 4
+                                            match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 && (match.sets?.length || 0) === 4
                                                 ? 'bg-red-600 hover:bg-red-700'
                                                 : 'bg-blue-600 hover:bg-blue-500'
                                         }`}
                                     >
-                                        {match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 && match.sets.length === 4
+                                        {match.teamA_set_points_total === 4 && match.teamB_set_points_total === 4 && (match.sets?.length || 0) === 4
                                             ? 'Shoot-Off'
-                                            : `Enter Set ${match.sets.length + 1}`
+                                            : `Enter Set ${(match.sets?.length || 0) + 1}`
                                         }
                                     </button>
                                 </>
