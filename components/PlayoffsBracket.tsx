@@ -9,9 +9,10 @@ interface PlayoffsBracketProps {
     onContinueMatch: (match: Match) => void;
     onShowQrCode: (match: Match) => void;
     isAdmin: boolean;
+    onViewGroupStage?: () => void;
 }
 
-const PlayoffsBracket: React.FC<PlayoffsBracketProps> = ({ teams, matches, onOpenScoresheet, onContinueMatch, onShowQrCode, isAdmin }) => {
+const PlayoffsBracket: React.FC<PlayoffsBracketProps> = ({ teams, matches, onOpenScoresheet, onContinueMatch, onShowQrCode, isAdmin, onViewGroupStage }) => {
     const getTeamName = useCallback((id: number) => {
         return teams.find(t => t.id === id)?.name || 'TBD';
     }, [teams]);
@@ -118,7 +119,19 @@ const PlayoffsBracket: React.FC<PlayoffsBracketProps> = ({ teams, matches, onOpe
 
     return (
         <div className="bg-white border-2 border-gray-200 p-3 sm:p-4 md:p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-center text-yellow-600">Playoffs</h2>
+            <div className="mb-4 sm:mb-6">
+                <h2 className="text-2xl sm:text-3xl font-bold text-center text-yellow-600">Playoffs</h2>
+                {onViewGroupStage && (
+                    <div className="mt-3">
+                        <button
+                            onClick={onViewGroupStage}
+                            className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 text-sm shadow-lg"
+                        >
+                            📊 View Group Stage Results
+                        </button>
+                    </div>
+                )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 items-start md:items-center">
                 {/* Semifinals */}
                 <div className="space-y-4 sm:space-y-6 md:space-y-8">

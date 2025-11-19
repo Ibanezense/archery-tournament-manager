@@ -13,9 +13,10 @@ interface DashboardProps {
     onShowQrCode: (match: Match) => void;
     onGenerateFinals: () => void;
     isAdmin: boolean;
+    onBackToPlayoffs?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onOpenScoresheet, onContinueMatch, onShowQrCode, onGenerateFinals, isAdmin }) => {
+const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onOpenScoresheet, onContinueMatch, onShowQrCode, onGenerateFinals, isAdmin, onBackToPlayoffs }) => {
     // Validación de datos
     if (!tournamentState || !tournamentState.teams || !tournamentState.groupMatches) {
         return <div className="text-center mt-10 text-red-600">Error: Tournament data is incomplete</div>;
@@ -80,6 +81,18 @@ const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onO
 
     return (
         <div className="space-y-6">
+            {/* Back to Playoffs button if viewing from playoffs */}
+            {onBackToPlayoffs && (
+                <div className="bg-white rounded-lg shadow-lg p-4">
+                    <button
+                        onClick={onBackToPlayoffs}
+                        className="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-300 text-sm shadow-lg"
+                    >
+                        ← Back to Playoffs
+                    </button>
+                </div>
+            )}
+            
             {/* Ranking Section - First */}
             <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
                 <RankingTable rankingData={rankingData} teams={tournamentState.teams} />

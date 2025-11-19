@@ -44,6 +44,7 @@ const App: React.FC = () => {
     const [showAllTeamsModal, setShowAllTeamsModal] = useState(false);
     const [loginPassword, setLoginPassword] = useState('');
     const [loginError, setLoginError] = useState('');
+    const [showGroupStageResults, setShowGroupStageResults] = useState(false);
 
     // Basic router
     useEffect(() => {
@@ -622,6 +623,24 @@ const App: React.FC = () => {
                  );
             }
             if (tournamentState.stage === 'playoffs' || tournamentState.stage === 'finished') {
+                // Show group stage results if requested
+                if (showGroupStageResults) {
+                    return (
+                        <Suspense fallback={<LoadingSpinner />}>
+                            <Dashboard
+                                tournamentState={tournamentState}
+                                rankingData={rankingData}
+                                onOpenScoresheet={handleOpenScoresheet}
+                                onContinueMatch={handleContinueMatch}
+                                onShowQrCode={handleShowQrCode}
+                                onGenerateFinals={handleGenerateFinals}
+                                isAdmin={isAdmin}
+                                onBackToPlayoffs={() => setShowGroupStageResults(false)}
+                            />
+                        </Suspense>
+                    );
+                }
+                
                 return (
                     <Suspense fallback={<LoadingSpinner />}>
                         <PlayoffsBracket 
@@ -631,6 +650,7 @@ const App: React.FC = () => {
                         onContinueMatch={handleContinueMatch}
                         onShowQrCode={handleShowQrCode}
                         isAdmin={isAdmin}
+                        onViewGroupStage={() => setShowGroupStageResults(true)}
                     />
                 </Suspense>
             );
