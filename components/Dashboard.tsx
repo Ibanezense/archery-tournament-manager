@@ -127,7 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onO
                                         <span>{team.members.length} integrantes</span>
                                     </p>
                                     <ul className="space-y-0.5">
-                                        {team.members.map((member, idx) => (
+                                        {team.members?.map((member, idx) => (
                                             <li key={idx} className="text-xs text-gray-700 flex items-center gap-1">
                                                 <span className="w-1 h-1 bg-yellow-500 rounded-full"></span>
                                                 {member}

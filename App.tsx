@@ -210,7 +210,21 @@ const App: React.FC = () => {
     }, [tournamentState]);
 
     const handleSetupComplete = useCallback((teams: Team[], tournamentName: string, tournamentDate: string) => {
+        console.log('Creating tournament with:', { teams: teams.length, tournamentName, tournamentDate });
+        
+        if (!teams || teams.length === 0) {
+            alert('No teams selected. Please select teams to create tournament.');
+            return;
+        }
+        
         const schedule = GROUP_SCHEDULES[teams.length];
+        
+        if (!schedule) {
+            alert(`No schedule found for ${teams.length} teams. Please use 7-10 teams.`);
+            console.error('No schedule for', teams.length, 'teams');
+            return;
+        }
+        
         const groupMatches: Match[] = schedule.map((matchPair, index) => ({
             id: index + 1,
             teamA_id: matchPair[0],
@@ -236,6 +250,7 @@ const App: React.FC = () => {
             playoffMatches: [],
         };
         
+        console.log('Tournament state created successfully');
         setTournamentState(initialState);
         setShowSetupScreen(false);
         setIsAdmin(true); // El creador es admin automáticamente
@@ -539,60 +554,61 @@ const App: React.FC = () => {
     }, []);
     
     const renderDashboard = () => {
-        // Si está mostrando TeamManagement
-        if (showTeamManagement) {
-            return (
-                <TeamManagement
-                    registeredTeams={registeredTeams}
-                    onSaveTeams={handleSaveRegisteredTeams}
-                    onBack={() => setShowTeamManagement(false)}
-                />
-            );
-        }
-        
-        // Si está mostrando SetupScreen (crear torneo)
-        if (showSetupScreen) {
-            return (
-                <SetupScreen
-                    registeredTeams={registeredTeams}
-                    onSetupComplete={handleSetupComplete}
-                />
-            );
-        }
-        
-        // Si no hay torneo, mostrar HomeScreen
-        if (!tournamentState) {
-            return (
-                <HomeScreen
-                    registeredTeams={registeredTeams}
-                    hasTournament={false}
-                    onEnterTournament={() => {}}
-                    onCreateTournament={() => setShowSetupScreen(true)}
-                    isAdmin={isAdmin}
-                />
-            );
-        }
-        
-        // Si hay torneo activo, mostrar dashboard correspondiente
-        if (tournamentState.stage === 'group') {
-             return (
-                <Suspense fallback={<LoadingSpinner />}>
-                    <Dashboard 
-                        tournamentState={tournamentState} 
-                        rankingData={rankingData}
-                        onOpenScoresheet={handleOpenScoresheet}
-                        onContinueMatch={handleContinueMatch}
-                        onShowQrCode={handleShowQrCode}
-                        onGenerateFinals={handleGenerateFinals}
+        try {
+            // Si está mostrando TeamManagement
+            if (showTeamManagement) {
+                return (
+                    <TeamManagement
+                        registeredTeams={registeredTeams}
+                        onSaveTeams={handleSaveRegisteredTeams}
+                        onBack={() => setShowTeamManagement(false)}
+                    />
+                );
+            }
+            
+            // Si está mostrando SetupScreen (crear torneo)
+            if (showSetupScreen) {
+                return (
+                    <SetupScreen
+                        registeredTeams={registeredTeams}
+                        onSetupComplete={handleSetupComplete}
+                    />
+                );
+            }
+            
+            // Si no hay torneo, mostrar HomeScreen
+            if (!tournamentState) {
+                return (
+                    <HomeScreen
+                        registeredTeams={registeredTeams}
+                        hasTournament={false}
+                        onEnterTournament={() => {}}
+                        onCreateTournament={() => setShowSetupScreen(true)}
                         isAdmin={isAdmin}
                     />
-                </Suspense>
-             );
-        }
-        if (tournamentState.stage === 'playoffs' || tournamentState.stage === 'finished') {
-            return (
-                <Suspense fallback={<LoadingSpinner />}>
-                    <PlayoffsBracket 
+                );
+            }
+            
+            // Si hay torneo activo, mostrar dashboard correspondiente
+            if (tournamentState.stage === 'group') {
+                 return (
+                    <Suspense fallback={<LoadingSpinner />}>
+                        <Dashboard 
+                            tournamentState={tournamentState} 
+                            rankingData={rankingData}
+                            onOpenScoresheet={handleOpenScoresheet}
+                            onContinueMatch={handleContinueMatch}
+                            onShowQrCode={handleShowQrCode}
+                            onGenerateFinals={handleGenerateFinals}
+                            isAdmin={isAdmin}
+                        />
+                    </Suspense>
+                 );
+            }
+            if (tournamentState.stage === 'playoffs' || tournamentState.stage === 'finished') {
+                return (
+                    <Suspense fallback={<LoadingSpinner />}>
+                        <PlayoffsBracket 
                         teams={tournamentState.teams} 
                         matches={tournamentState.playoffMatches} 
                         onOpenScoresheet={handleOpenScoresheet}
@@ -604,6 +620,21 @@ const App: React.FC = () => {
             );
         }
         return <div className="text-center mt-10">Invalid tournament stage.</div>;
+        } catch (error) {
+            console.error('Error rendering dashboard:', error);
+            return (
+                <div className="text-center mt-10 p-4 bg-red-50 border border-red-400 rounded">
+                    <h2 className="text-xl font-bold text-red-700 mb-2">Error Loading Tournament</h2>
+                    <p className="text-red-600 mb-4">Something went wrong. Please check the console for details.</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                    >
+                        Reload Page
+                    </button>
+                </div>
+            );
+        }
     };
 
     const renderContent = () => {
