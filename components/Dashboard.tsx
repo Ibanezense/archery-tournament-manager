@@ -16,12 +16,23 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onOpenScoresheet, onContinueMatch, onShowQrCode, onGenerateFinals, isAdmin }) => {
+    // Validación de datos
+    if (!tournamentState || !tournamentState.teams || !tournamentState.groupMatches) {
+        return <div className="text-center mt-10 text-red-600">Error: Tournament data is incomplete</div>;
+    }
+    
     const allMatchesCompleted = useMemo(
         () => tournamentState.groupMatches.every(m => m.completed),
         [tournamentState.groupMatches]
     );
 
     const exportToCSV = () => {
+        // Validar datos antes de exportar
+        if (!rankingData || !tournamentState.teams || !tournamentState.groupMatches) {
+            alert('No data available to export');
+            return;
+        }
+        
         // Exportar ranking
         const rankingCSV = [
             ['Rank', 'Team', 'Matches Played', 'Match Points', 'Arrow Average', 'X+10s'],
@@ -107,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onO
             <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Equipos Participantes</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {tournamentState.teams.map((team, index) => (
+                    {tournamentState.teams?.map((team, index) => (
                         <div
                             key={team.id}
                             className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border-2 border-gray-200 hover:border-yellow-400 transition-all"
