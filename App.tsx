@@ -29,6 +29,7 @@ const App: React.FC = () => {
     const [showSetupScreen, setShowSetupScreen] = useState(false);
     const [loading, setLoading] = useState(true);
     const isSavingTeams = React.useRef(false);
+    const isSavingTournament = React.useRef(false);
     const [error, setError] = useState<string | null>(null);
     const [activeMatch, setActiveMatch] = useState<Match | null>(null);
     const [isEditingMatch, setIsEditingMatch] = useState(false);
@@ -94,6 +95,12 @@ const App: React.FC = () => {
         // Set up real-time listeners
         const unsubscribeTournament = onValue(tournamentRef, (snapshot) => {
             try {
+                // Don't update if we're currently saving to avoid race conditions
+                if (isSavingTournament.current) {
+                    console.log('Skipping Firebase tournament update - save in progress');
+                    return;
+                }
+                
                 const data = snapshot.val();
                 setTournamentState(data || null);
             } catch (err) {
@@ -137,12 +144,21 @@ const App: React.FC = () => {
 
     // Save tournament state to Firebase
     useEffect(() => {
-        if (tournamentState) {
+        if (tournamentState && !isSavingTournament.current) {
+            isSavingTournament.current = true;
             const tournamentRef = ref(database, 'tournamentState');
-            set(tournamentRef, tournamentState).catch((err) => {
-                console.error("Failed to save tournament state:", err);
-                setError("Could not save tournament data to server.");
-            });
+            set(tournamentRef, tournamentState)
+                .then(() => {
+                    // Small delay before allowing new updates to prevent rapid fire
+                    setTimeout(() => {
+                        isSavingTournament.current = false;
+                    }, 500);
+                })
+                .catch((err) => {
+                    console.error("Failed to save tournament state:", err);
+                    setError("Could not save tournament data to server.");
+                    isSavingTournament.current = false;
+                });
         }
     }, [tournamentState]);
 
@@ -539,7 +555,7 @@ const App: React.FC = () => {
             
             setTournamentState({ ...tournamentState, playoffMatches: [...tournamentState.playoffMatches, bronzeMatch, goldMatch]});
         }
-    }, [tournamentState]);
+    }, [tournamentState?.stage, tournamentState?.playoffMatches]);
 
     const handleResetTournament = useCallback(() => {
         if (window.confirm("Are you sure you want to reset the tournament? All data will be lost.")) {
