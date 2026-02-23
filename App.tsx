@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import type { Team, Match, TournamentState } from './types';
+import type { Team, Match, TournamentState, TournamentConfig } from './types';
 import { GROUP_SCHEDULES } from './constants';
 import SetupScreen from './components/SetupScreen';
 import TeamManagement from './components/TeamManagement';
+import TournamentSettings from './components/TournamentSettings';
 import AllTeamsModal from './components/AllTeamsModal';
 import HomeScreen from './components/HomeScreen';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -38,6 +39,54 @@ const withBasePath = (appPath: string): string => {
     return `${BASE_PREFIX}${normalizedPath}`;
 };
 
+const emptyTournamentConfig: TournamentConfig = {
+    distances: [],
+    categories: [],
+    divisions: [],
+};
+
+const sanitizeTournamentConfig = (config: TournamentConfig): TournamentConfig => {
+    const sanitizeList = (list: string[]) => {
+        const seen = new Set<string>();
+        const values: string[] = [];
+        list.forEach((item) => {
+            const trimmed = item.trim();
+            if (!trimmed) return;
+            const key = trimmed.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            values.push(trimmed);
+        });
+        return values;
+    };
+
+    return {
+        distances: sanitizeList(config.distances),
+        categories: sanitizeList(config.categories),
+        divisions: sanitizeList(config.divisions),
+    };
+};
+
+const buildGroupMatches = (teamsCount: number): Match[] | null => {
+    const schedule = GROUP_SCHEDULES[teamsCount];
+    if (!schedule) return null;
+
+    return schedule.map((matchPair, index) => ({
+        id: index + 1,
+        teamA_id: matchPair[0],
+        teamB_id: matchPair[1],
+        sets: [],
+        completed: false,
+        teamA_set_points_total: 0,
+        teamB_set_points_total: 0,
+        teamA_arrow_score_total: 0,
+        teamB_arrow_score_total: 0,
+        teamA_x10s_total: 0,
+        teamB_x10s_total: 0,
+        stage: 'group',
+    }));
+};
+
 const App: React.FC = () => {
     const { notify, confirm } = useFeedback();
     const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
@@ -58,6 +107,12 @@ const App: React.FC = () => {
     const [loginPassword, setLoginPassword] = useState('');
     const [loginError, setLoginError] = useState('');
     const [showGroupStageResults, setShowGroupStageResults] = useState(false);
+
+    const navigateTo = useCallback((appPath: string) => {
+        const normalizedPath = appPath.startsWith('/') ? appPath : `/${appPath}`;
+        window.history.pushState({}, '', withBasePath(normalizedPath));
+        setPath(normalizedPath);
+    }, []);
 
     // Basic router
     useEffect(() => {
@@ -252,57 +307,87 @@ const App: React.FC = () => {
     }, [tournamentState, notify]);
 
     const handleSetupComplete = useCallback((teams: Team[], tournamentName: string, tournamentDate: string) => {
-        console.log('Creating tournament with:', { teams: teams.length, tournamentName, tournamentDate });
-        
+        console.log('Creating tournament draft with:', { teams: teams.length, tournamentName, tournamentDate });
+
         if (!teams || teams.length === 0) {
             notify('No teams selected. Please select teams to create tournament.', 'error');
             return;
         }
-        
-        const schedule = GROUP_SCHEDULES[teams.length];
-        
-        if (!schedule) {
+
+        if (!buildGroupMatches(teams.length)) {
             notify(`No schedule found for ${teams.length} teams. Please use 7-10 teams.`, 'error');
             console.error('No schedule for', teams.length, 'teams');
             return;
         }
-        
-        const groupMatches: Match[] = schedule.map((matchPair, index) => ({
-            id: index + 1,
-            teamA_id: matchPair[0],
-            teamB_id: matchPair[1],
-            sets: [],
-            completed: false,
-            teamA_set_points_total: 0,
-            teamB_set_points_total: 0,
-            teamA_arrow_score_total: 0,
-            teamB_arrow_score_total: 0,
-            teamA_x10s_total: 0,
-            teamB_x10s_total: 0,
-            stage: 'group',
-        }));
 
         const initialState: TournamentState = {
             id: Date.now().toString(),
             name: tournamentName,
             date: tournamentDate,
-            stage: 'group',
+            stage: 'setup',
             teams,
-            groupMatches,
+            groupMatches: [],
             playoffMatches: [],
+            config: emptyTournamentConfig,
         };
-        
-        console.log('Tournament state created successfully');
+
         setTournamentState(initialState);
         setShowSetupScreen(false);
-        setIsAdmin(true); // El creador es admin automáticamente
-        
-        // Preload Dashboard and modal components after setup
+        setIsAdmin(true);
+        navigateTo('/settings');
+        notify('Tournament draft created. Configure it before starting.', 'success');
+    }, [notify, navigateTo]);
+
+    const handleSaveTournamentDraft = useCallback((data: { name: string; date: string; config: TournamentConfig }) => {
+        if (!tournamentState || tournamentState.stage !== 'setup') return;
+        const cleanedConfig = sanitizeTournamentConfig(data.config);
+        setTournamentState({
+            ...tournamentState,
+            name: data.name.trim() || tournamentState.name,
+            date: data.date,
+            config: cleanedConfig,
+        });
+        notify('Draft configuration saved.', 'success');
+    }, [tournamentState, notify]);
+
+    const handleStartTournamentFromDraft = useCallback((data: { name: string; date: string; config: TournamentConfig }) => {
+        if (!tournamentState || tournamentState.stage !== 'setup') return;
+
+        const name = data.name.trim();
+        if (!name) {
+            notify('Tournament name is required before starting.', 'error');
+            return;
+        }
+
+        const cleanedConfig = sanitizeTournamentConfig(data.config);
+        if (!cleanedConfig.distances.length || !cleanedConfig.categories.length || !cleanedConfig.divisions.length) {
+            notify('Add at least one distance, category and division before starting.', 'error');
+            return;
+        }
+
+        const groupMatches = buildGroupMatches(tournamentState.teams.length);
+        if (!groupMatches) {
+            notify(`No schedule found for ${tournamentState.teams.length} teams. Please use 7-10 teams.`, 'error');
+            return;
+        }
+
+        setTournamentState({
+            ...tournamentState,
+            name,
+            date: data.date,
+            config: cleanedConfig,
+            stage: 'group',
+            groupMatches,
+            playoffMatches: [],
+        });
+
+        navigateTo('/');
         preloadDashboard();
         preloadScoresheetModal();
         preloadQRCodeModal();
-    }, [notify]);
-    
+        notify('Tournament started successfully.', 'success');
+    }, [tournamentState, navigateTo, notify]);
+
     const handleOpenScoresheet = useCallback((match: Match, isEditing = false) => {
         if (isEditing && !isAdmin) {
             setShowLoginModal(true);
@@ -596,6 +681,36 @@ const App: React.FC = () => {
         setPath('/');
         notify('Tournament reset successfully.', 'success');
     }, [confirm, notify]);
+
+    const renderTournamentSettings = () => {
+        if (!tournamentState || tournamentState.stage !== 'setup') {
+            return (
+                <div className="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow border border-gray-200 text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Configuration unavailable</h2>
+                    <p className="text-gray-600 mb-4">Tournament configuration is only available while the tournament is in draft mode.</p>
+                    <button
+                        onClick={() => navigateTo('/')}
+                        className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg transition"
+                    >
+                        Back to Tournament
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <TournamentSettings
+                tournamentName={tournamentState.name || ''}
+                tournamentDate={tournamentState.date || new Date().toISOString().split('T')[0]}
+                teamsCount={tournamentState.teams.length}
+                config={tournamentState.config || emptyTournamentConfig}
+                isAdmin={isAdmin}
+                onBack={() => navigateTo('/')}
+                onSaveDraft={handleSaveTournamentDraft}
+                onStartTournament={handleStartTournamentFromDraft}
+            />
+        );
+    };
     
     const renderDashboard = () => {
         try {
@@ -634,6 +749,10 @@ const App: React.FC = () => {
                         isAdmin={isAdmin}
                     />
                 );
+            }
+
+            if (tournamentState.stage === 'setup') {
+                return renderTournamentSettings();
             }
             
             // Si hay torneo activo, mostrar dashboard correspondiente
@@ -704,6 +823,10 @@ const App: React.FC = () => {
     };
 
     const renderContent = () => {
+        if (path === '/settings' || path === '/configuracion' || path === '/configuracion-torneo') {
+            return renderTournamentSettings();
+        }
+
         if (path.startsWith('/score/')) {
             const matchIdRaw = path.split('/score/')[1];
             const matchId = Number(matchIdRaw);
@@ -758,6 +881,15 @@ const App: React.FC = () => {
                             title="View All Teams"
                         >
                             📋 Teams
+                        </button>
+                    )}
+                    {isAdmin && tournamentState?.stage === 'setup' && path !== '/settings' && (
+                        <button
+                            onClick={() => navigateTo('/settings')}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-2 sm:py-2 sm:px-4 rounded-lg transition text-xs sm:text-sm shadow-lg"
+                            title="Tournament Configuration"
+                        >
+                            Config
                         </button>
                     )}
                     {isAdmin && (
@@ -915,5 +1047,8 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+
+
 
 

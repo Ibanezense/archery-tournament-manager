@@ -48,6 +48,12 @@ export interface EditHistoryEntry {
 
 export type TournamentStage = 'setup' | 'group' | 'playoffs' | 'finished';
 
+export interface TournamentConfig {
+  distances: string[];
+  categories: string[];
+  divisions: string[];
+}
+
 export interface TournamentState {
   id?: string;
   name?: string;
@@ -56,6 +62,7 @@ export interface TournamentState {
   teams: Team[];
   groupMatches: Match[];
   playoffMatches: Match[];
+  config?: TournamentConfig;
   adminPassword?: string;
   registeredTeams?: Team[];
 }

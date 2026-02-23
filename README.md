@@ -75,8 +75,9 @@ base: '/nombre-de-tu-repo/'  // Cambia esto
 
 1. Inicia sesión como admin (botón **🔒 Admin**)
 2. Registra equipos con sus integrantes (**⚙️ Edit Teams**)
-3. Crea el torneo seleccionando 7-10 equipos
-4. El sistema genera automáticamente los matches
+3. Crea el torneo seleccionando 7-10 equipos (queda en modo borrador)
+4. Configura distancias, categorías y divisiones
+5. Inicia el torneo para generar automáticamente los matches
 
 ### Durante el Torneo
 
