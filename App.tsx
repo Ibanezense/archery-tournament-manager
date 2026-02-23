@@ -823,7 +823,13 @@ const App: React.FC = () => {
     };
 
     const renderContent = () => {
-        if (path === '/settings' || path === '/configuracion' || path === '/configuracion-torneo') {
+        const isSettingsPath =
+            path === '/settings' ||
+            path === '/configuracion' ||
+            path === '/configuracion-torneo' ||
+            /\/settings\/?$/.test(path);
+
+        if (isSettingsPath) {
             return renderTournamentSettings();
         }
 
