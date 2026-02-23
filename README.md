@@ -8,14 +8,14 @@ Sistema completo para gestionar torneos de tiro con arco con equipos, matches, r
 
 ## ✨ Características
 
-- 🔐 **Autenticación Admin** - Password fijo: `AbsoluteArchery25`
+- 🔐 **Autenticación Admin** - Password por variable de entorno: `VITE_ADMIN_PASSWORD`
 - 👥 **Gestión de Equipos** - Registro de equipos con integrantes
 - 📊 **Ranking en Tiempo Real** - Estadísticas completas (Avg, X+10s, Arrow Score)
 - 🎯 **Scoresheets Digitales** - Registro de flechas por set con validaciones
 - 📱 **Códigos QR** - Para que árbitros ingresen resultados desde móviles
 - 🏆 **Sistema de Playoffs** - Bracket automático de cuartos, semis y final
 - 💾 **Backup/Restore** - Exporta e importa datos del torneo en JSON
-- 🌐 **Sin Base de Datos** - Todo se almacena en localStorage del navegador
+- **Persistencia en Firebase** - Datos en tiempo real entre dispositivos
 
 ## 🚀 Deploy en GitHub Pages (GRATIS)
 
@@ -96,14 +96,14 @@ Antes de empezar el torneo:
 - React 19 + TypeScript
 - Vite 6
 - Tailwind CSS
-- LocalStorage para persistencia
+- Firebase Realtime Database para persistencia
 - QRCode.react para códigos QR
 
 ## 📝 Notas Importantes
 
-- Los datos se guardan en localStorage del navegador
+- Los datos del torneo se guardan en Firebase Realtime Database
 - Si borras el caché, pierdes los datos (usa Backup!)
-- El password admin es `AbsoluteArchery25` (hardcoded)
+- Define `VITE_ADMIN_PASSWORD` en `.env.local` para habilitar login admin
 - Funciona 100% offline después de cargar
 - No hay límite de torneos por año
 
@@ -114,3 +114,4 @@ Para bugs o mejoras, abre un Issue en GitHub.
 ---
 
 **Desarrollado para Absolute Archery** 🎯
+

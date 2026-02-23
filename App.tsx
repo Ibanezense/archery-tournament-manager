@@ -19,8 +19,23 @@ const ScoresheetModal = lazy(() => import('./components/ScoresheetModal'));
 const QRCodeModal = lazy(() => import('./components/QRCodeModal'));
 const ScorerPage = lazy(() => import('./components/ScorerPage'));
 
-const LOCAL_STORAGE_KEY = 'archery-tournament-state';
 const REGISTERED_TEAMS_KEY = 'archery-registered-teams';
+const BASE_URL = import.meta.env.BASE_URL || '/';
+const BASE_PREFIX = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+
+const stripBasePath = (pathname: string): string => {
+    if (BASE_PREFIX && BASE_PREFIX !== '/' && pathname.startsWith(BASE_PREFIX)) {
+        const stripped = pathname.slice(BASE_PREFIX.length);
+        return stripped || '/';
+    }
+    return pathname || '/';
+};
+
+const withBasePath = (appPath: string): string => {
+    const normalizedPath = appPath.startsWith('/') ? appPath : `/${appPath}`;
+    if (!BASE_PREFIX || BASE_PREFIX === '/') return normalizedPath;
+    return `${BASE_PREFIX}${normalizedPath}`;
+};
 
 const App: React.FC = () => {
     const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
@@ -34,11 +49,7 @@ const App: React.FC = () => {
     const [activeMatch, setActiveMatch] = useState<Match | null>(null);
     const [isEditingMatch, setIsEditingMatch] = useState(false);
     const [qrCodeMatch, setQrCodeMatch] = useState<Match | null>(null);
-    const [path, setPath] = useState(() => {
-        const fullPath = window.location.pathname;
-        // Remove base path for GitHub Pages
-        return fullPath.replace('/archery-tournament-manager', '') || '/';
-    });
+    const [path, setPath] = useState(() => stripBasePath(window.location.pathname));
     const [isAdmin, setIsAdmin] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showAllTeamsModal, setShowAllTeamsModal] = useState(false);
@@ -49,8 +60,7 @@ const App: React.FC = () => {
     // Basic router
     useEffect(() => {
         const onLocationChange = () => {
-            const fullPath = window.location.pathname;
-            setPath(fullPath.replace('/archery-tournament-manager', '') || '/');
+            setPath(stripBasePath(window.location.pathname));
         };
         window.addEventListener('popstate', onLocationChange);
         return () => window.removeEventListener('popstate', onLocationChange);
@@ -301,9 +311,13 @@ const App: React.FC = () => {
     }, []);
 
     const handleLogin = useCallback(() => {
-        const FIXED_ADMIN_PASSWORD = 'AbsoluteArchery25';
+        const configuredPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+        if (!configuredPassword) {
+            setLoginError('Admin password is not configured');
+            return;
+        }
         
-        if (loginPassword === FIXED_ADMIN_PASSWORD) {
+        if (loginPassword === configuredPassword) {
             setIsAdmin(true);
             setShowLoginModal(false);
             setLoginPassword('');
@@ -317,26 +331,6 @@ const App: React.FC = () => {
         setIsAdmin(false);
     }, []);
 
-    const handleExportBackup = useCallback(() => {
-        const backup = {
-            version: '1.0',
-            timestamp: new Date().toISOString(),
-            tournamentState,
-            registeredTeams
-        };
-        
-        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        const date = new Date().toISOString().split('T')[0];
-        link.href = url;
-        link.download = `archery_backup_${date}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }, [tournamentState, registeredTeams]);
-
     const handleImportBackup = useCallback(() => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -344,27 +338,37 @@ const App: React.FC = () => {
         input.onchange = (e: Event) => {
             const file = (e.target as HTMLInputElement).files?.[0];
             if (!file) return;
-            
+
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const backup = JSON.parse(event.target?.result as string);
-                    
+
                     // Support old backup format (data property) and new format (direct properties)
                     const tournamentData = backup.tournamentState || backup.data;
-                    const teamsData = backup.registeredTeams || [];
-                    
-                    if (tournamentData) {
-                        setTournamentState(tournamentData);
-                    }
-                    if (teamsData.length > 0) {
-                        setRegisteredTeams(teamsData);
-                    }
-                    
-                    alert('✅ Backup restored successfully!');
+                    const teamsData = Array.isArray(backup.registeredTeams) ? backup.registeredTeams : [];
+                    const tournamentRef = ref(database, 'tournamentState');
+                    const teamsRef = ref(database, 'registeredTeams');
+
+                    isSavingTournament.current = true;
+                    isSavingTeams.current = true;
+
+                    await Promise.all([
+                        set(tournamentRef, tournamentData || null),
+                        set(teamsRef, teamsData),
+                    ]);
+
+                    setTournamentState(tournamentData || null);
+                    setRegisteredTeams(teamsData);
+                    localStorage.setItem(REGISTERED_TEAMS_KEY, JSON.stringify(teamsData));
+
+                    alert('Backup restored successfully');
                 } catch (err) {
                     console.error('Failed to restore backup:', err);
-                    alert('❌ Failed to restore backup. Invalid file format.');
+                    alert('Failed to restore backup. Invalid file format.');
+                } finally {
+                    isSavingTournament.current = false;
+                    isSavingTeams.current = false;
                 }
             };
             reader.readAsText(file);
@@ -565,13 +569,16 @@ const App: React.FC = () => {
             setTournamentState(null);
             setActiveMatch(null);
             setIsEditingMatch(false);
-            window.history.pushState({}, '', '/');
+            window.history.pushState({}, '', withBasePath('/'));
             setPath('/');
         }
     }, []);
     
     const renderDashboard = () => {
         try {
+            if (loading) {
+                return <LoadingSpinner />;
+            }
             // Si está mostrando TeamManagement
             if (showTeamManagement) {
                 return (
@@ -675,7 +682,16 @@ const App: React.FC = () => {
 
     const renderContent = () => {
         if (path.startsWith('/score/')) {
-            const matchId = parseInt(path.split('/score/')[1], 10);
+            const matchIdRaw = path.split('/score/')[1];
+            const matchId = Number(matchIdRaw);
+            if (!Number.isInteger(matchId) || matchId <= 0) {
+                return (
+                    <div className="text-red-600 text-center mt-10 p-4 bg-red-50 border-2 border-red-200 rounded-lg max-w-md mx-auto shadow-md">
+                        Invalid scoring link. Please scan the QR code again.
+                    </div>
+                );
+            }
+
             return (
                 <Suspense fallback={<LoadingSpinner />}>
                     <ScorerPage matchId={matchId} />
@@ -853,26 +869,12 @@ const App: React.FC = () => {
                             >
                                 Cancel
                             </button>
-                            {tournamentState?.adminPassword ? (
-                                <button
-                                    onClick={handleLogin}
-                                    className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition"
-                                >
-                                    Login
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => {
-                                        if (confirm('This tournament has no admin password. Reset to create a new one?')) {
-                                            handleResetTournament();
-                                            setShowLoginModal(false);
-                                        }
-                                    }}
-                                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition"
-                                >
-                                    Reset Tournament
-                                </button>
-                            )}
+                            <button
+                                onClick={handleLogin}
+                                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition"
+                            >
+                                Login
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -890,3 +892,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+

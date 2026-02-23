@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Match, Team, ArrowValue, SetScore, TournamentState } from '../types';
 import { ARROW_VALUES } from '../constants';
-
-const LOCAL_STORAGE_KEY = 'archery-tournament-state';
+import { database } from '../firebase';
+import { ref, get, set } from 'firebase/database';
 
 interface ScorerPageProps {
     matchId: number;
@@ -20,6 +20,7 @@ const ScorerPage: React.FC<ScorerPageProps> = ({ matchId }) => {
     const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSaved, setIsSaved] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
     const [teamA, setTeamA] = useState<Team | null>(null);
@@ -32,33 +33,53 @@ const ScorerPage: React.FC<ScorerPageProps> = ({ matchId }) => {
     const [shootOffData, setShootOffData] = useState({ winner: null as 'A' | 'B' | null, scoreA: '', scoreB: '' });
 
     useEffect(() => {
-        try {
-            const savedStateJSON = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (savedStateJSON) {
-                const state: TournamentState = JSON.parse(savedStateJSON);
+        const loadTournament = async () => {
+            try {
+                if (!Number.isInteger(matchId) || matchId <= 0) {
+                    setError("Invalid match URL.");
+                    return;
+                }
+
+                const tournamentRef = ref(database, 'tournamentState');
+                const snapshot = await get(tournamentRef);
+                const state = snapshot.val() as TournamentState | null;
+
+                if (!state) {
+                    setError("Tournament data not found. Please set up a tournament first.");
+                    return;
+                }
+
                 setTournamentState(state);
-                
                 const allMatches = [...state.groupMatches, ...state.playoffMatches];
                 const foundMatch = allMatches.find(m => m.id === matchId);
-                
-                if (foundMatch) {
-                    if (foundMatch.completed) {
-                        setError("This match has already been completed.");
-                        return;
-                    }
-                    setCurrentMatch(JSON.parse(JSON.stringify(foundMatch)));
-                    setTeamA(state.teams.find(t => t.id === foundMatch.teamA_id) || null);
-                    setTeamB(state.teams.find(t => t.id === foundMatch.teamB_id) || null);
-                    setCurrentSetIndex(foundMatch.sets.length);
-                } else {
+
+                if (!foundMatch) {
                     setError("Match not found.");
+                    return;
                 }
-            } else {
-                setError("Tournament data not found. Please set up a tournament first.");
+
+                if (foundMatch.completed) {
+                    setError("This match has already been completed.");
+                    return;
+                }
+
+                setCurrentMatch(JSON.parse(JSON.stringify(foundMatch)));
+                const foundTeamA = state.teams.find(t => t.id === foundMatch.teamA_id) || null;
+                const foundTeamB = state.teams.find(t => t.id === foundMatch.teamB_id) || null;
+                if (!foundTeamA || !foundTeamB) {
+                    setError("Match teams are missing from tournament data.");
+                    return;
+                }
+
+                setTeamA(foundTeamA);
+                setTeamB(foundTeamB);
+                setCurrentSetIndex(foundMatch.sets.length);
+            } catch {
+                setError("Could not load tournament data.");
             }
-        } catch (err) {
-            setError("Could not load tournament data.");
-        }
+        };
+
+        loadTournament();
     }, [matchId]);
 
     const liveTotalSetPoints = useMemo(() => {
@@ -110,8 +131,8 @@ const ScorerPage: React.FC<ScorerPageProps> = ({ matchId }) => {
         setCurrentArrowsB([]);
     }, [currentArrowsA, currentArrowsB, currentSetTotals, currentMatch]);
 
-    const handleSaveMatch = () => {
-        if (!currentMatch || !tournamentState || !teamA || !teamB) return;
+    const handleSaveMatch = async () => {
+        if (!currentMatch || !tournamentState || !teamA || !teamB || isSaving) return;
 
         let finalMatch = { ...currentMatch, completed: true };
         
@@ -149,14 +170,41 @@ const ScorerPage: React.FC<ScorerPageProps> = ({ matchId }) => {
         finalMatch.teamB_x10s_total = totals.x10sB;
         finalMatch.winner_id = finalPoints.a > finalPoints.b ? teamA.id : finalPoints.b > finalPoints.a ? teamB.id : null;
 
-        // Update state in localStorage
+        // Persist updated state to Firebase
         const isGroupMatch = finalMatch.stage === 'group';
         const matchesKey = isGroupMatch ? 'groupMatches' : 'playoffMatches';
-        const updatedMatches = tournamentState[matchesKey].map(m => m.id === finalMatch.id ? finalMatch : m);
-        const newState: TournamentState = { ...tournamentState, [matchesKey]: updatedMatches };
-        
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newState));
-        setIsSaved(true);
+        setIsSaving(true);
+        try {
+            const tournamentRef = ref(database, 'tournamentState');
+            const latestSnapshot = await get(tournamentRef);
+            const latestState = latestSnapshot.val() as TournamentState | null;
+            if (!latestState) {
+                setError("Tournament data is no longer available.");
+                return;
+            }
+
+            const latestMatches = latestState[matchesKey] || [];
+            const latestMatch = latestMatches.find(m => m.id === finalMatch.id);
+            if (!latestMatch) {
+                setError("Match no longer exists.");
+                return;
+            }
+            if (latestMatch.completed) {
+                setError("This match was already completed from another device.");
+                return;
+            }
+
+            const updatedMatches = latestMatches.map(m => m.id === finalMatch.id ? finalMatch : m);
+            const newState: TournamentState = { ...latestState, [matchesKey]: updatedMatches };
+
+            await set(tournamentRef, newState);
+            setTournamentState(newState);
+            setIsSaved(true);
+        } catch {
+            setError("Could not save tournament data.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     if (error) {
@@ -250,7 +298,15 @@ const ScorerPage: React.FC<ScorerPageProps> = ({ matchId }) => {
                  {(isMatchOver || (isShootOff && shootOffData.winner)) && (
                     <div className="text-center mt-4 sm:mt-6">
                         <h3 className="text-xl sm:text-2xl font-bold text-green-600 mb-3 sm:mb-4">Match Ready to Save</h3>
-                        <button onClick={handleSaveMatch} className="bg-yellow-600 text-white font-bold py-2 sm:py-3 px-6 sm:px-8 rounded-lg hover:bg-yellow-500 transition text-base sm:text-lg shadow-md">Confirm and Save Final Score</button>
+                        <button
+                            onClick={handleSaveMatch}
+                            disabled={isSaving}
+                            className={`font-bold py-2 sm:py-3 px-6 sm:px-8 rounded-lg transition text-base sm:text-lg shadow-md ${
+                                isSaving ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-yellow-600 text-white hover:bg-yellow-500'
+                            }`}
+                        >
+                            {isSaving ? 'Saving...' : 'Confirm and Save Final Score'}
+                        </button>
                     </div>
                 )}
             </div>

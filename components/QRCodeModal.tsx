@@ -15,7 +15,9 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ match, teamA, teamB, onClose 
 
     useEffect(() => {
         if (canvasRef.current) {
-            const url = `${window.location.origin}/score/${match.id}`;
+            const baseUrl = import.meta.env.BASE_URL || '/';
+            const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+            const url = `${window.location.origin}${normalizedBaseUrl}score/${match.id}`;
             QRCode.toCanvas(canvasRef.current, url, { width: 256 }, function (error: Error | null | undefined) {
                 if (error) console.error(error);
             });
