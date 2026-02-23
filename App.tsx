@@ -11,6 +11,7 @@ import { RankingData } from './types';
 import { preloadDashboard, preloadScoresheetModal, preloadQRCodeModal } from './preload';
 import { database } from './firebase';
 import { ref, onValue, set, get } from 'firebase/database';
+import { useFeedback } from './components/FeedbackProvider';
 
 // Lazy load components that are not immediately needed
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -38,6 +39,7 @@ const withBasePath = (appPath: string): string => {
 };
 
 const App: React.FC = () => {
+    const { notify, confirm } = useFeedback();
     const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
     const [registeredTeams, setRegisteredTeams] = useState<Team[]>([]);
     const [showTeamManagement, setShowTeamManagement] = useState(false);
@@ -65,6 +67,19 @@ const App: React.FC = () => {
         window.addEventListener('popstate', onLocationChange);
         return () => window.removeEventListener('popstate', onLocationChange);
     }, []);
+
+    useEffect(() => {
+        if (!showLoginModal) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setShowLoginModal(false);
+                setLoginPassword('');
+                setLoginError('');
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [showLoginModal]);
 
     // Load state from Firebase on initial render + migrate from localStorage if needed
     useEffect(() => {
@@ -179,7 +194,7 @@ const App: React.FC = () => {
         // Validate teams before saving
         if (!Array.isArray(teams)) {
             console.error('Invalid teams data:', teams);
-            alert('Error: Invalid team data');
+            notify('Error: invalid team data.', 'error');
             return;
         }
         
@@ -231,23 +246,23 @@ const App: React.FC = () => {
             setShowTeamManagement(false);
         }).catch((err) => {
             console.error("Failed to save registered teams:", err);
-            alert('Error saving teams to database. Please try again.');
+            notify('Error saving teams. Please try again.', 'error');
             isSavingTeams.current = false;
         });
-    }, [tournamentState]);
+    }, [tournamentState, notify]);
 
     const handleSetupComplete = useCallback((teams: Team[], tournamentName: string, tournamentDate: string) => {
         console.log('Creating tournament with:', { teams: teams.length, tournamentName, tournamentDate });
         
         if (!teams || teams.length === 0) {
-            alert('No teams selected. Please select teams to create tournament.');
+            notify('No teams selected. Please select teams to create tournament.', 'error');
             return;
         }
         
         const schedule = GROUP_SCHEDULES[teams.length];
         
         if (!schedule) {
-            alert(`No schedule found for ${teams.length} teams. Please use 7-10 teams.`);
+            notify(`No schedule found for ${teams.length} teams. Please use 7-10 teams.`, 'error');
             console.error('No schedule for', teams.length, 'teams');
             return;
         }
@@ -286,7 +301,7 @@ const App: React.FC = () => {
         preloadDashboard();
         preloadScoresheetModal();
         preloadQRCodeModal();
-    }, []);
+    }, [notify]);
     
     const handleOpenScoresheet = useCallback((match: Match, isEditing = false) => {
         if (isEditing && !isAdmin) {
@@ -362,10 +377,10 @@ const App: React.FC = () => {
                     setRegisteredTeams(teamsData);
                     localStorage.setItem(REGISTERED_TEAMS_KEY, JSON.stringify(teamsData));
 
-                    alert('Backup restored successfully');
+                    notify('Backup restored successfully.', 'success');
                 } catch (err) {
                     console.error('Failed to restore backup:', err);
-                    alert('Failed to restore backup. Invalid file format.');
+                    notify('Failed to restore backup. Invalid file format.', 'error');
                 } finally {
                     isSavingTournament.current = false;
                     isSavingTeams.current = false;
@@ -374,7 +389,7 @@ const App: React.FC = () => {
             reader.readAsText(file);
         };
         input.click();
-    }, []);
+    }, [notify]);
 
     const handleSaveMatch = useCallback((updatedMatch: Match) => {
         if (!tournamentState) return;
@@ -562,17 +577,25 @@ const App: React.FC = () => {
         }
     }, [tournamentState?.stage, tournamentState?.playoffMatches]);
 
-    const handleResetTournament = useCallback(() => {
-        if (window.confirm("Are you sure you want to reset the tournament? All data will be lost.")) {
-            const tournamentRef = ref(database, 'tournamentState');
-            set(tournamentRef, null);
-            setTournamentState(null);
-            setActiveMatch(null);
-            setIsEditingMatch(false);
-            window.history.pushState({}, '', withBasePath('/'));
-            setPath('/');
-        }
-    }, []);
+    const handleResetTournament = useCallback(async () => {
+        const confirmed = await confirm({
+            title: 'Reset tournament',
+            message: 'Are you sure you want to reset the tournament? All data will be lost.',
+            confirmLabel: 'Reset',
+            cancelLabel: 'Cancel',
+            destructive: true,
+        });
+        if (!confirmed) return;
+
+        const tournamentRef = ref(database, 'tournamentState');
+        set(tournamentRef, null);
+        setTournamentState(null);
+        setActiveMatch(null);
+        setIsEditingMatch(false);
+        window.history.pushState({}, '', withBasePath('/'));
+        setPath('/');
+        notify('Tournament reset successfully.', 'success');
+    }, [confirm, notify]);
     
     const renderDashboard = () => {
         try {
@@ -834,8 +857,8 @@ const App: React.FC = () => {
             {/* Modal de Login Admin */}
             {showLoginModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full">
-                        <h3 className="text-2xl font-bold mb-4 text-gray-900">Admin Login</h3>
+                    <div className="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full" role="dialog" aria-modal="true" aria-labelledby="admin-login-title">
+                        <h3 id="admin-login-title" className="text-2xl font-bold mb-4 text-gray-900">Admin Login</h3>
                         <p className="text-sm text-gray-600 mb-4">
                             Enter the admin password to edit tournament data
                         </p>
@@ -849,7 +872,7 @@ const App: React.FC = () => {
                                     setLoginPassword(e.target.value);
                                     setLoginError('');
                                 }}
-                                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                                 className="w-full bg-white border-2 border-gray-300 rounded-md p-3 text-gray-900 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                                 placeholder="Enter admin password"
                                 autoFocus

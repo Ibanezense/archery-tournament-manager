@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import type { Match, Team, ArrowValue, SetScore } from '../types';
 import { ARROW_VALUES } from '../constants';
+import { useFeedback } from './FeedbackProvider';
 
 interface ScoresheetModalProps {
     match: Match;
@@ -18,8 +19,10 @@ const getArrowPoint = (val: ArrowValue) => {
     return val;
 };
 const isX10 = (val: ArrowValue) => val === 'X' || val === 10;
+const sanitizeShootOffScore = (value: string) => value.replace(/\D/g, '').slice(0, 2);
 
 const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, isEditing, onClose, onSave }) => {
+    const { confirm } = useFeedback();
     const [currentMatch, setCurrentMatch] = useState<Match>(JSON.parse(JSON.stringify(match)));
     const [currentSetIndex, setCurrentSetIndex] = useState(match.sets?.length || 0);
     const [currentArrowsA, setCurrentArrowsA] = useState<ArrowValue[]>([]);
@@ -47,6 +50,19 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
     const needsShootOff = liveTotalSetPoints.a === 4 && liveTotalSetPoints.b === 4 && (currentMatch.sets?.length || 0) === 4;
     const isShootOffMode = needsShootOff && currentSetIndex === 4; // El set 5 (índice 4) es el shoot-off
     const canAddSet = !isMatchOver && currentSetIndex < 4;
+
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            if (showConfirmation) {
+                setShowConfirmation(false);
+                return;
+            }
+            onClose();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [onClose, showConfirmation]);
 
     const currentSetTotals = useMemo(() => {
         const totalA = currentArrowsA.reduce((sum, val) => sum + getArrowPoint(val), 0);
@@ -134,33 +150,40 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
         onClose();
     };
 
-    const deleteLastSet = useCallback(() => {
+    const deleteLastSet = useCallback(async () => {
         if ((currentMatch.sets?.length || 0) === 0) return;
+
+        const confirmed = await confirm({
+            title: 'Delete last set',
+            message: 'Are you sure you want to delete the last set? This action cannot be undone.',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            destructive: true,
+        });
+        if (!confirmed) return;
+
+        const updatedMatch = {
+            ...currentMatch,
+            sets: (currentMatch.sets || []).slice(0, -1),
+            completed: false,
+            winner_id: undefined,
+            isShootOff: false,
+            shootOffScore: undefined,
+            editHistory: [
+                ...(currentMatch.editHistory || []),
+                {
+                    timestamp: new Date().toISOString(),
+                    action: 'set_deleted' as const,
+                    setIndex: (currentMatch.sets?.length || 1) - 1,
+                    details: `Deleted set ${currentMatch.sets?.length || 0}`
+                }
+            ]
+        };
         
-        if (window.confirm('Are you sure you want to delete the last set? This action cannot be undone.')) {
-            const updatedMatch = {
-                ...currentMatch,
-                sets: (currentMatch.sets || []).slice(0, -1),
-                completed: false,
-                winner_id: undefined,
-                isShootOff: false,
-                shootOffScore: undefined,
-                editHistory: [
-                    ...(currentMatch.editHistory || []),
-                    {
-                        timestamp: new Date().toISOString(),
-                        action: 'set_deleted' as const,
-                        setIndex: (currentMatch.sets?.length || 1) - 1,
-                        details: `Deleted set ${currentMatch.sets?.length || 0}`
-                    }
-                ]
-            };
-            
-            setCurrentMatch(updatedMatch);
-            onSave(updatedMatch);
-            onClose();
-        }
-    }, [currentMatch, onSave, onClose]);
+        setCurrentMatch(updatedMatch);
+        onSave(updatedMatch);
+        onClose();
+    }, [currentMatch, onSave, onClose, confirm]);
 
     const saveCurrentSet = useCallback(() => {
         if (currentArrowsA.length !== 10 || currentArrowsB.length !== 10) return;
@@ -411,9 +434,12 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
                             <input
                                 type="text"
                                 value={shootOffData.scoreA}
-                                onChange={(e) => setShootOffData(prev => ({...prev, scoreA: e.target.value}))}
+                                onChange={(e) => setShootOffData(prev => ({...prev, scoreA: sanitizeShootOffScore(e.target.value)}))}
                                 className="w-20 bg-white border-2 border-gray-300 rounded-md p-2 text-gray-900 text-center focus:outline-none focus:border-yellow-600"
                                 placeholder="Score"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={2}
                             />
                             <button
                                 onClick={() => setShootOffData(prev => ({...prev, winner: 'A'}))}
@@ -425,9 +451,12 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
                             <input
                                 type="text"
                                 value={shootOffData.scoreB}
-                                onChange={(e) => setShootOffData(prev => ({...prev, scoreB: e.target.value}))}
+                                onChange={(e) => setShootOffData(prev => ({...prev, scoreB: sanitizeShootOffScore(e.target.value)}))}
                                 className="w-20 bg-white border-2 border-gray-300 rounded-md p-2 text-gray-900 text-center focus:outline-none focus:border-yellow-600"
                                 placeholder="Score"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={2}
                             />
                             <button
                                 onClick={() => setShootOffData(prev => ({...prev, winner: 'B'}))}
@@ -490,10 +519,10 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="scoresheet-title">
                 <div className="p-3 sm:p-4 md:p-6 border-b-2 border-gray-200 sticky top-0 bg-white z-10">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-600 truncate pr-2">{teamA.name} vs {teamB.name}</h2>
+                        <h2 id="scoresheet-title" className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-600 truncate pr-2">{teamA.name} vs {teamB.name}</h2>
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-900 text-2xl sm:text-3xl flex-shrink-0 transition">&times;</button>
                     </div>
                     <div className="text-3xl sm:text-4xl md:text-5xl text-center font-bold my-2 sm:my-4 text-gray-900">{liveTotalSetPoints.a} - {liveTotalSetPoints.b}</div>
@@ -517,8 +546,8 @@ const ScoresheetModal: React.FC<ScoresheetModalProps> = ({ match, teamA, teamB, 
             {/* Diálogo de confirmación */}
             {showConfirmation && (
                 <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[60] p-4">
-                    <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full">
-                        <h3 className="text-xl font-bold mb-4 text-gray-900">Confirm Set Score</h3>
+                    <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="confirm-set-title">
+                        <h3 id="confirm-set-title" className="text-xl font-bold mb-4 text-gray-900">Confirm Set Score</h3>
                         <div className="mb-6 space-y-3">
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-200">
                                 <span className="font-semibold text-gray-900">{teamA.name}:</span>

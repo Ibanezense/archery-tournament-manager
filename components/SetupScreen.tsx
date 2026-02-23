@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import type { Team } from '../types';
+import { useFeedback } from './FeedbackProvider';
 
 interface SetupScreenProps {
     registeredTeams: Team[];
@@ -8,6 +9,7 @@ interface SetupScreenProps {
 }
 
 const SetupScreen: React.FC<SetupScreenProps> = ({ registeredTeams, onSetupComplete }) => {
+    const { notify } = useFeedback();
     const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
     const [tournamentName, setTournamentName] = useState('');
     const [tournamentDate, setTournamentDate] = useState(new Date().toISOString().split('T')[0]);
@@ -40,12 +42,12 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ registeredTeams, onSetupCompl
         e.preventDefault();
         
         if (!tournamentName.trim()) {
-            alert('Por favor ingresa un nombre para el torneo');
+            notify('Por favor ingresa un nombre para el torneo.', 'error');
             return;
         }
         
         if (selectedTeamIds.length < 7 || selectedTeamIds.length > 10) {
-            alert('Por favor selecciona entre 7 y 10 equipos para el torneo');
+            notify('Por favor selecciona entre 7 y 10 equipos para el torneo.', 'error');
             return;
         }
 

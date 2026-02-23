@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { Team } from '../types';
 
 interface TeamInfoModalProps {
@@ -7,15 +7,23 @@ interface TeamInfoModalProps {
 }
 
 const TeamInfoModal: React.FC<TeamInfoModalProps> = ({ team, onClose }) => {
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [onClose]);
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full">
+            <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full" role="dialog" aria-modal="true" aria-labelledby="team-info-title">
                 <div className="flex items-center gap-3 mb-4">
                     <div 
                         className="w-6 h-6 rounded-full flex-shrink-0" 
                         style={{ backgroundColor: team.color }}
                     />
-                    <h3 className="text-2xl font-bold text-gray-900">{team.name}</h3>
+                    <h3 id="team-info-title" className="text-2xl font-bold text-gray-900">{team.name}</h3>
                 </div>
                 
                 {team.members && team.members.length > 0 ? (

@@ -14,6 +14,14 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ match, teamA, teamB, onClose 
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [onClose]);
+
+    useEffect(() => {
         if (canvasRef.current) {
             const baseUrl = import.meta.env.BASE_URL || '/';
             const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
@@ -26,10 +34,10 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({ match, teamA, teamB, onClose 
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm text-center">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm text-center" role="dialog" aria-modal="true" aria-labelledby="qr-score-title">
                 <div className="p-6 border-b-2 border-gray-200">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-yellow-600">Scan to Score</h2>
+                        <h2 id="qr-score-title" className="text-xl font-bold text-yellow-600">Scan to Score</h2>
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-900 text-2xl transition">&times;</button>
                     </div>
                 </div>

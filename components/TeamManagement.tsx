@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Team } from '../types';
+import { useFeedback } from './FeedbackProvider';
 
 interface TeamManagementProps {
     registeredTeams: Team[];
@@ -8,6 +9,7 @@ interface TeamManagementProps {
 }
 
 const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSaveTeams, onBack }) => {
+    const { notify, confirm } = useFeedback();
     const [teams, setTeams] = useState<Team[]>(registeredTeams);
     const [editingTeam, setEditingTeam] = useState<Team | null>(null);
     const [showForm, setShowForm] = useState(false);
@@ -79,7 +81,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
 
     const handleSaveTeam = () => {
         if (!teamName.trim()) {
-            alert('Team name is required');
+            notify('Team name is required.', 'error');
             return;
         }
 
@@ -120,10 +122,17 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
         setShowForm(true);
     };
 
-    const handleDeleteTeam = (teamId: number) => {
-        if (confirm('Are you sure you want to delete this team?')) {
-            setTeams(teams.filter(t => t.id !== teamId));
-        }
+    const handleDeleteTeam = async (teamId: number) => {
+        const confirmed = await confirm({
+            title: 'Delete team',
+            message: 'Are you sure you want to delete this team?',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            destructive: true,
+        });
+        if (!confirmed) return;
+        setTeams(teams.filter(t => t.id !== teamId));
+        notify('Team deleted.', 'success');
     };
 
     const handleCancel = () => {
@@ -274,7 +283,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ registeredTeams, onSave
                                 type="text"
                                 value={memberInput}
                                 onChange={(e) => setMemberInput(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddMember())}
+                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddMember())}
                                 placeholder="Enter member name"
                                 className="flex-1 bg-white border-2 border-gray-300 rounded-md p-3 text-gray-900 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                             />

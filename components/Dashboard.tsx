@@ -4,6 +4,7 @@ import type { TournamentState, RankingData, Match } from '../types';
 import MatchList from './MatchList';
 import RankingTable from './RankingTable';
 import AllTeamsModal from './AllTeamsModal';
+import { useFeedback } from './FeedbackProvider';
 
 interface DashboardProps {
     tournamentState: TournamentState;
@@ -17,6 +18,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onOpenScoresheet, onContinueMatch, onShowQrCode, onGenerateFinals, isAdmin, onBackToPlayoffs }) => {
+    const { notify } = useFeedback();
     // Validación de datos
     if (!tournamentState || !tournamentState.teams || !tournamentState.groupMatches) {
         return <div className="text-center mt-10 text-red-600">Error: Tournament data is incomplete</div>;
@@ -30,7 +32,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tournamentState, rankingData, onO
     const exportToCSV = () => {
         // Validar datos antes de exportar
         if (!rankingData || !tournamentState.teams || !tournamentState.groupMatches) {
-            alert('No data available to export');
+            notify('No data available to export.', 'error');
             return;
         }
         

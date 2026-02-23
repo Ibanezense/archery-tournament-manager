@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { Team } from '../types';
 
 interface AllTeamsModalProps {
@@ -7,11 +7,19 @@ interface AllTeamsModalProps {
 }
 
 const AllTeamsModal: React.FC<AllTeamsModalProps> = ({ teams, onClose }) => {
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [onClose]);
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-lg shadow-2xl p-4 sm:p-6 max-w-3xl w-full my-8">
+            <div className="bg-white rounded-lg shadow-2xl p-4 sm:p-6 max-w-3xl w-full my-8" role="dialog" aria-modal="true" aria-labelledby="all-teams-title">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl sm:text-2xl font-bold text-yellow-600">All Teams</h3>
+                    <h3 id="all-teams-title" className="text-xl sm:text-2xl font-bold text-yellow-600">All Teams</h3>
                     <button
                         onClick={onClose}
                         className="text-gray-500 hover:text-gray-700 font-bold text-2xl"

@@ -15,12 +15,14 @@ const getArrowPoint = (val: ArrowValue) => {
     return val;
 };
 const isX10 = (val: ArrowValue) => val === 'X' || val === 10;
+const sanitizeShootOffScore = (value: string) => value.replace(/\D/g, '').slice(0, 2);
 
 const ScorerPage: React.FC<ScorerPageProps> = ({ matchId }) => {
     const [tournamentState, setTournamentState] = useState<TournamentState | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSaved, setIsSaved] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const baseUrl = import.meta.env.BASE_URL || '/';
 
     const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
     const [teamA, setTeamA] = useState<Team | null>(null);
@@ -219,9 +221,19 @@ const ScorerPage: React.FC<ScorerPageProps> = ({ matchId }) => {
                 <h2 className="text-3xl font-bold text-green-600 mb-4">Score Saved!</h2>
                 <p className="text-gray-700 mb-6">The tournament dashboard has been updated.</p>
                 <div className="text-2xl font-bold text-gray-900">{teamA.name} <span className="text-yellow-600">{liveTotalSetPoints.a}</span> - <span className="text-yellow-600">{liveTotalSetPoints.b}</span> {teamB.name}</div>
-                <button onClick={() => window.close()} className="mt-6 bg-yellow-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-yellow-500 transition shadow-md">
-                    Close Window
-                </button>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                    <button
+                        onClick={() => {
+                            window.location.href = baseUrl;
+                        }}
+                        className="bg-yellow-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-yellow-500 transition shadow-md"
+                    >
+                        Back to Tournament
+                    </button>
+                    <button onClick={() => window.close()} className="bg-gray-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-500 transition shadow-md">
+                        Close Window
+                    </button>
+                </div>
             </div>
         );
     }
@@ -284,11 +296,29 @@ const ScorerPage: React.FC<ScorerPageProps> = ({ matchId }) => {
                         <h3 className="text-xl sm:text-2xl font-bold text-red-600 mb-3 sm:mb-4">SHOOT-OFF</h3>
                         <div className="flex flex-col items-center gap-3 sm:gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-                                <input type="text" value={shootOffData.scoreA} onChange={(e) => setShootOffData(prev => ({...prev, scoreA: e.target.value}))} className="w-20 bg-white border-2 border-gray-300 rounded-md p-2 text-gray-900 text-center focus:outline-none focus:border-yellow-600" placeholder="Score"/>
+                                <input
+                                    type="text"
+                                    value={shootOffData.scoreA}
+                                    onChange={(e) => setShootOffData(prev => ({...prev, scoreA: sanitizeShootOffScore(e.target.value)}))}
+                                    className="w-20 bg-white border-2 border-gray-300 rounded-md p-2 text-gray-900 text-center focus:outline-none focus:border-yellow-600"
+                                    placeholder="Score"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    maxLength={2}
+                                />
                                 <button onClick={() => setShootOffData(prev => ({...prev, winner: 'A'}))} className={`font-bold py-2 px-4 sm:px-6 rounded w-full sm:w-48 text-center text-sm sm:text-base transition shadow-sm ${shootOffData.winner === 'A' ? 'bg-yellow-600 text-white border-2 border-yellow-600' : 'bg-white text-gray-900 border-2 border-gray-300 hover:border-yellow-600'}`}>{teamA.name} Wins</button>
                             </div>
                             <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-                                <input type="text" value={shootOffData.scoreB} onChange={(e) => setShootOffData(prev => ({...prev, scoreB: e.target.value}))} className="w-20 bg-white border-2 border-gray-300 rounded-md p-2 text-gray-900 text-center focus:outline-none focus:border-yellow-600" placeholder="Score"/>
+                                <input
+                                    type="text"
+                                    value={shootOffData.scoreB}
+                                    onChange={(e) => setShootOffData(prev => ({...prev, scoreB: sanitizeShootOffScore(e.target.value)}))}
+                                    className="w-20 bg-white border-2 border-gray-300 rounded-md p-2 text-gray-900 text-center focus:outline-none focus:border-yellow-600"
+                                    placeholder="Score"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    maxLength={2}
+                                />
                                 <button onClick={() => setShootOffData(prev => ({...prev, winner: 'B'}))} className={`font-bold py-2 px-4 sm:px-6 rounded w-full sm:w-48 text-center text-sm sm:text-base transition shadow-sm ${shootOffData.winner === 'B' ? 'bg-yellow-600 text-white border-2 border-yellow-600' : 'bg-white text-gray-900 border-2 border-gray-300 hover:border-yellow-600'}`}>{teamB.name} Wins</button>
                             </div>
                         </div>
